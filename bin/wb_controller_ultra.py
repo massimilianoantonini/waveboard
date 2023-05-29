@@ -23,6 +23,7 @@ from matplotlib.widgets import Button
 import re
 import argparse
 import gc
+import platform
 
 
 parser = argparse.ArgumentParser(description="Waveboard controller - wirtten by Lorenzo Campana", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -158,7 +159,6 @@ class WbControllerUltraApp(tk.Frame):
         print("WaveBoard 1 selezionata")
         self.lbl_wvb.configure(text='WVB'+str(wvb_active))
         
-
     def activate_wvb2(self):
         global wvb_active
         
@@ -169,7 +169,6 @@ class WbControllerUltraApp(tk.Frame):
         self.v_bias_conv=v_bias_conv_all[wvb_active]
         print("WaveBoard 2 selezionata")
         self.lbl_wvb.configure(text='WVB 2')   
-
 
     def activate_wvb3(self):
         global wvb_active
@@ -191,13 +190,7 @@ class WbControllerUltraApp(tk.Frame):
             wvb_active="1p"
         if polarity=="negative":
             wvb_active="1n"
-        #os.system("""ssh """ + username + """@""" + ip_address + """ sudo bash -c 'cat WaveBrd_OsciMode_Positive.bit > /dev/xdevcfg '""")
-        #os.system("""ssh """ + username + """@""" + ip_address + """ cat WaveBrd_OsciMode_Positive.bit | sudo tee -a /dev/xdevcfg """)
-        nbytes = 4096
-        hostname = '192.168.137.30'
-        port = 22
-        username = 'root' 
-        password = 'pippo123'
+
         command_1 = """ cat WaveBrd_OsciMode_Positive.bit > /dev/xdevcfg """
         
         if wvb_active==2:
@@ -206,56 +199,18 @@ class WbControllerUltraApp(tk.Frame):
         if wvb_active=="1p":
             command_2 = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "350 330 325 338 345 322 352 320 333 332 340 330" """
 
-
-        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x100 0x115 0x130 0x150 0x105 0x105 0x110 0x100 0x105 0x115 0x110 0x110"' &""")
         
 
         print("Changing Pedestal Values...")
-        client = paramiko.Transport((hostname, port))
-        client.connect(username=username, password=password)
 
-        stdout_data = []
-        stderr_data = []
-        session = client.open_channel(kind='session')
-        
-        session.exec_command(command_2)
+        stdin, stdout, stderr = client.exec_command(command_2)
+       
 
-        while True:
-            if session.recv_ready():
-                stdout_data.append(session.recv(nbytes))
-            if session.recv_stderr_ready():
-                stderr_data.append(session.recv_stderr(nbytes))
-            if session.exit_status_ready():
-                break
-
-        session.recv_exit_status()
-
-        session.close()
-        client.close()
-        
-        time.sleep(3)
+        time.sleep(1)
 
         print("Changing Board configuration...")
-        client = paramiko.Transport((hostname, port))
-        client.connect(username=username, password=password)
-
-        stdout_data = []
-        stderr_data = []
-        session = client.open_channel(kind='session')
+        stdin, stdout, stderr = client.exec_command(command_1)
         
-        session.exec_command(command_1)
-        while True:
-            if session.recv_ready():
-                stdout_data.append(session.recv(nbytes))
-            if session.recv_stderr_ready():
-                stderr_data.append(session.recv_stderr(nbytes))
-            if session.exit_status_ready():
-                break
-
-        session.recv_exit_status()
-
-        session.close()
-        client.close()
         
         self.initialize_board()
         print("Board configuration changed")
@@ -263,6 +218,15 @@ class WbControllerUltraApp(tk.Frame):
 
         
     def initUI(self):
+
+        architecture = platform.machine()
+        if "x86" in architecture:
+            self.arch="x86"
+
+        elif "arm" in architecture:
+            self.arch="arm"
+
+        print(self.arch)
 
         # build ui
         
@@ -919,10 +883,17 @@ class WbControllerUltraApp(tk.Frame):
             print(self.print_screen_status)
 
             if self.print_screen_status.get():
-                os.system("nc 192.168.137.30 5000 | ./RateParser -a -t "+str(self.ent_interval.get())+" -d " +self.ent_delay.get()+ " -c 13 &")
+                if self.arch=="arm":
+                    os.system("nc 192.168.137.30 5000 | ./RateParser_arm -a -t "+str(self.ent_interval.get())+" -d " +self.ent_delay.get()+ " -c 13 &")
+                elif self.arch=="x86":
+                    os.system("nc 192.168.137.30 5000 | ./RateParser_x86 -a -t "+str(self.ent_interval.get())+" -d " +self.ent_delay.get()+ " -c 13 &")
 
             if not self.print_screen_status.get():
-                os.system("nc 192.168.137.30 5000 | ./RateParser -a -t "+str(self.ent_interval.get())+" -d " +self.ent_delay.get()+ " >> "+name +"&")
+                if self.arch=="arm":
+                    os.system("nc 192.168.137.30 5000 | ./RateParser_arm -a -t "+str(self.ent_interval.get())+" -d " +self.ent_delay.get()+ " >> "+name +"&")
+
+                if self.arch=="x86":
+                    os.system("nc 192.168.137.30 5000 | ./RateParser_x86 -a -t "+str(self.ent_interval.get())+" -d " +self.ent_delay.get()+ " >> "+name +"&")
 
 
 
@@ -1175,24 +1146,16 @@ class WbControllerUltraApp(tk.Frame):
         e_log.clear()
         e_acquisition.clear()
 
-        if self.print_screen_status.get():
-            print("Stopping acquisition...")
-            os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
-            time.sleep(1)
-            os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
-            time.sleep(1)
-            os.system("killall RateParser")         
+        print("Stopping acquisition...")
+        os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
+        time.sleep(1)
+        os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
+        time.sleep(1)
+        if self.arch=="arm":
+            os.system("killall RateParser_arm")     
+        elif self.arch=="x86":
+            os.system("killall RateParser_x86") 
 
-        else:
-            print("Stopping acquisition...")
-            os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
-            #os.system("pkill -f loop_temp.py")
-            time.sleep(1)
-            os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
-            time.sleep(1)
-            os.system("killall RateParser")
-            time.sleep(1)
-            #os.system("python3 fusion.py "+name)
 
 
     def open_analysis_clicked(self, event=None):
@@ -1221,7 +1184,12 @@ class WbControllerUltraApp(tk.Frame):
             filename_txt= filename.replace(".bin", "_chall.txt")
             print(filename_txt)
             
-            os.system("./HitViewer -p -c -1 -z -r -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+            if self.arch == "arm":
+                os.system("./HitViewer_arm -p -c -1 -z -r -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+
+            elif self.arch=="x86":
+                os.system("./HitViewer_x86 -p -c -1 -z -r -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+
 
             self.count=0
             
@@ -1340,7 +1308,12 @@ class WbControllerUltraApp(tk.Frame):
             filename_txt= filename.split(sep="/")[-1][:-4]+"_ch"+str(ch)+".txt"
             print(filename_txt)
 
-            os.system("./HitViewer -p -c " + str(ch) + " -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+            if self.arch == "arm":
+                os.system("./HitViewer_arm -p -c " + str(ch) + " -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+            elif self.arch=="x86":
+                os.system("./HitViewer_x86 -p -c " + str(ch) + " -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+
+
 
             with open(filename_txt) as data:
                 self.lenght=len(data.read().splitlines())
@@ -1439,7 +1412,10 @@ class WbControllerUltraApp(tk.Frame):
         if self.channel_variable.get() == "ALL":
             filename_txt= filename.split(sep="/")[-1][:-4]+"_chall"+".txt"
             
-            os.system("./HitViewer -p -c -1 -z -r -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+            if self.arch=="arm":
+                os.system("./HitViewer_arm -p -c -1 -z -r -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+            elif self.arch=="x86":
+                os.system("./HitViewer_x86 -p -c -1 -z -r -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
 
             with open(filename_txt) as data:
                 waveform=data.read().splitlines()
@@ -1531,8 +1507,10 @@ class WbControllerUltraApp(tk.Frame):
             ch=self.channel_variable.get()
             filename_txt= filename.split(sep="/")[-1][:-4]+"_ch"+str(ch)+".txt"
 
-            os.system("./HitViewer -p -c " + str(ch) + " -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
-
+            if self.arch=="arm":
+                os.system("./HitViewer_arm -p -c " + str(ch) + " -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
+            elif self.arch=="x86":
+                os.system("./HitViewer_x86 -p -c " + str(ch) + " -f "+str(filename)+" -n "+str(hit_to_plot) +" -o "+str(hit_to_skip)+" > " + filename_txt)
 
             if self.histo_type_variable.get()=="Maximum":
                 with open(filename_txt) as data:
