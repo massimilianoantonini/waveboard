@@ -21,7 +21,15 @@ matplotlib.use('TkAgg')
 from config_ultra import *
 from matplotlib.widgets import Button
 import re
+import argparse
 import gc
+
+
+parser = argparse.ArgumentParser(description="Waveboard controller - wirtten by Lorenzo Campana", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("-d", "--dry", action="store_true", help="Dry run without to run the program without connection to the waveboard")
+
+args = parser.parse_args()
+
 
 date = datetime.datetime.now()
 
@@ -49,7 +57,9 @@ date_format = month+day+hour+minute+str(date.year-2000)
 
 client = SSHClient()
 client.load_system_host_keys()
-client.connect(ip_address, username=username)
+
+if getattr(args, 'd', False):
+    client.connect(ip_address, username=username)
 
 
 e_monitor=threading.Event()
@@ -122,40 +132,11 @@ def v_adc(v_bias, t_board,ch):
 
 
 
-t_board = float(subprocess.check_output("""ssh """ + username + """@""" + ip_address + """ 'bash get_param.sh' """, shell=True)[16:18]) 
-
-
 #da usare con waveboard 1.0 con tempertura funzionante 
 #t_board = float(subprocess.check_output("""ssh """ + username + """@""" + ip_address + """ 'bash get_param.sh' """, shell=True)[16:21]) 
 
 def t_daq_read_tcp():
     print("Starting DaqReadTcp...")
-    # ~ nbytes = 4096
-    # ~ hostname = '192.168.137.30'
-    # ~ port = 22
-    # ~ username = 'root' 
-    # ~ password = 'pippo123'
-    # ~ command = './DaqReadTcp'
-
-    # ~ client = paramiko.Transport((hostname, port))
-    # ~ client.connect(username=username, password=password)
-
-    # ~ stdout_data = []
-    # ~ stderr_data = []
-    # ~ session = client.open_channel(kind='session')
-    # ~ session.exec_command(command)
-    # ~ while True:
-        # ~ if session.recv_ready():
-            # ~ stdout_data.append(session.recv(nbytes))
-        # ~ if session.recv_stderr_ready():
-            # ~ stderr_data.append(session.recv_stderr(nbytes))
-        # ~ if session.exit_status_ready():
-            # ~ break
-
-    # ~ session.recv_exit_status()
-
-    # ~ session.close()
-    # ~ client.close()
     stdin, stdout, stderr = client.exec_command("./DaqReadTcp")
 
 
@@ -165,8 +146,6 @@ class WbControllerUltraApp(tk.Frame):
         super().__init__()
         self.initUI()
         
-
-
         
     def activate_wvb1(self):
         global wvb_active
@@ -284,8 +263,6 @@ class WbControllerUltraApp(tk.Frame):
 
         
     def initUI(self):
-
-        #self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
         # build ui
         
@@ -756,11 +733,6 @@ class WbControllerUltraApp(tk.Frame):
 #         self.mainwindow = master
 
 
-        #INITIALIZE STARTUP PARAMETERS
-
-        self.initialize_board()
-    
-
         def t_monitor():
             global t_board
         
@@ -795,9 +767,18 @@ class WbControllerUltraApp(tk.Frame):
                 abortable_sleep(interval,e_timer)
 
 
-        thread_monitor = threading.Thread(target=t_monitor)
-        thread_monitor.deamon = True
-        thread_monitor.start()
+
+        #INITIALIZE STARTUP PARAMETERS
+
+        if getattr(args, 'd', False):
+
+            self.initialize_board()
+            thread_monitor = threading.Thread(target=t_monitor)
+            thread_monitor.deamon = True
+            thread_monitor.start()
+
+    
+
     
     
     def start_calibration_clicked(self, event=None):
