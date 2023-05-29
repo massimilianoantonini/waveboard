@@ -210,7 +210,7 @@ class WbControllerUltraApp(tk.Frame):
 
         print("Changing Board configuration...")
         stdin, stdout, stderr = client.exec_command(command_1)
-        
+
         
         self.initialize_board()
         print("Board configuration changed")
@@ -1169,7 +1169,7 @@ class WbControllerUltraApp(tk.Frame):
         filename=self.ent_analysis.get()
         print(filename)
 
-        filename_txt= filename.split(sep="/")[-1][:-4]+".txt"
+        #filename_txt= filename.split(sep="/")[-1][:-4]+".txt"
 
         hit_to_plot = self.ent_wf_plot.get()
         hit_to_skip = self.ent_wf_skip.get()
@@ -1305,7 +1305,9 @@ class WbControllerUltraApp(tk.Frame):
         else:
             ch=self.channel_variable.get()
             print(ch)
-            filename_txt= filename.split(sep="/")[-1][:-4]+"_ch"+str(ch)+".txt"
+            #filename_txt= filename.split(sep="/")[-1][:-4]+"_ch"+str(ch)+".txt"
+
+            filename_txt= filename.replace(".bin","_ch"+str(ch)+".txt" )
             print(filename_txt)
 
             if self.arch == "arm":
@@ -1376,20 +1378,6 @@ class WbControllerUltraApp(tk.Frame):
             fig.canvas.mpl_connect('close_event',on_close)            
             plt.show()
 
-#     def plot_clicked(self, event=None):
-#     
-#         if hasattr(self, 'thread_plot'):
-#             if not self.thread_plot.is_alive():     
-#                 self.thread_plot = threading.Thread(target=self.t_plot)
-#                 self.thread_plot.deamon = True
-#                 self.thread_plot.start()
-#             else:
-#                 print("Plot window allready open. Close current window and retry")
-#                 
-#         if not hasattr(self, 'thread_plot'):
-#             self.thread_plot = threading.Thread(target=self.t_plot)
-#             self.thread_plot.deamon = True
-#             self.thread_plot.start()
             
     def histo_clicked(self, event=None):
         
@@ -1576,19 +1564,7 @@ class WbControllerUltraApp(tk.Frame):
 
 
 
-#     def histo_clicked(self, event=None):
-#         if hasattr(self, 'thread_histo'):
-#             if not self.thread_histo.is_alive():     
-#                 self.thread_histo = threading.Thread(target=self.t_histo)
-#                 self.thread_histo.deamon = True
-#                 self.thread_histo.start()
-#             else:
-#                 print("Plot window already open. Close current window and retry")
-#                 
-#         if not hasattr(self, 'thread_histo'):
-#             self.thread_histo = threading.Thread(target=self.t_histo)
-#             self.thread_histo.deamon = True
-#             self.thread_histo.start()
+
             
 
 
