@@ -31,6 +31,8 @@ parser.add_argument("-d", "--dry", action="store_true", help="Dry run without to
 
 args = parser.parse_args()
 
+print(args)
+print(getattr(args, 'dry'))
 
 date = datetime.datetime.now()
 
@@ -59,7 +61,7 @@ date_format = month+day+hour+minute+str(date.year-2000)
 client = SSHClient()
 client.load_system_host_keys()
 
-if getattr(args, 'd', False):
+if getattr(args, 'dry')==False:
     client.connect(ip_address, username=username)
 
 
@@ -733,8 +735,7 @@ class WbControllerUltraApp(tk.Frame):
 
 
         #INITIALIZE STARTUP PARAMETERS
-
-        if getattr(args, 'd', False):
+        if getattr(args, 'dry')==False:
 
             self.initialize_board()
             thread_monitor = threading.Thread(target=t_monitor)
