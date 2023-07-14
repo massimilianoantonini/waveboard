@@ -27,7 +27,7 @@ import platform
 
 
 parser = argparse.ArgumentParser(description="Waveboard controller - wirtten by Lorenzo Campana", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-d", "--dry", action="store_true", help="Dry run without to run the program without connection to the waveboard")
+parser.add_argument("-d", "--dry", action="store_true", help="Dry run to run the program without connection to the waveboard")
 
 args = parser.parse_args()
 
@@ -62,7 +62,8 @@ client = SSHClient()
 client.load_system_host_keys()
 
 if getattr(args, 'dry')==False:
-    client.connect(ip_address, username=username)
+    client.connect(ip_address, username=username, password="root")
+    print("ciao")
 
 
 e_monitor=threading.Event()
@@ -792,21 +793,31 @@ class WbControllerUltraApp(tk.Frame):
         
         if param["gain"]=="high":
             print("Setting gain to 20...")
-            os.system("""ssh """ + username + """@""" + ip_address + """ './M4Comm -s "\$gsha#" ' &""")
+            stdin, stdout, stderr = client.exec_command("""./M4Comm -s "\$gsha#" &""")
+            #os.system("""ssh """ + username + """@""" + ip_address + """ './M4Comm -s "\$gsha#" ' &""")
 
         if param["gain"]=="low":
             print("Setting gain to 2...")
-            os.system("""ssh """ + username + """@""" + ip_address + """ './M4Comm -s "\$gsla#" ' &""")
+            stdin, stdout, stderr = client.exec_command("""./M4Comm -s "\$gsla#" & """)
+            #os.system("""ssh """ + username + """@""" + ip_address + """ './M4Comm -s "\$gsla#" ' &""")
 
         print("Initializing board...")
-        os.system("""ssh """ + username + """@""" + ip_address + """ 'date """ + date_format  + "'")
-        os.system("""ssh """ + username + """@""" + ip_address + """ './SetTimeReg -t l'""")
-        os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_iob_delay.sh -N "{0..11}" -F """ + iob_delay+ """' """)
+        stdin, stdout, stderr = client.exec_command("date " + date_format)
+        print(date_format)
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'date """ + date_format  + "'")
+        stdin, stdout, stderr = client.exec_command("./SetTimeReg -t l")
+        #os.system("""ssh """ + username + """@""" + ip_address + """ './SetTimeReg -t l'""")
+        
+        stdin, stdout, stderr = client.exec_command("""bash daq_set_iob_delay.sh -N "{0..11}" -F """+ iob_delay)
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_iob_delay.sh -N "{0..11}" -F """ + iob_delay+ """' """)
         
         print("Board initialized")
         
         print("Setting channels parametes...")
-        os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
+
+        stdin, stdout, stderr = client.exec_command("""bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string)
+        print(channel_string)
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
     
         
 
@@ -855,7 +866,6 @@ class WbControllerUltraApp(tk.Frame):
         time.sleep(1)
 
         if self.daq_type == "waveform" :
-
             os.system("nc 192.168.137.30 5000 > " + str(self.ent_name_binary.get()) + " &")
 
 
@@ -917,6 +927,7 @@ class WbControllerUltraApp(tk.Frame):
         
         name = self.ent_name_binary.get()
         
+   
         os.system("touch "+ str(self.ent_name_binary.get()))
 
         if name != "":
@@ -941,6 +952,7 @@ class WbControllerUltraApp(tk.Frame):
             def t_size():
 
                 while(e_acquisition.is_set()):
+                    
                     filesize = subprocess.check_output("du -h "+ str(name), shell=True)[:-len(name)+1]
                     self.lbl_daq_status.configure(text=str(filesize))
                     time.sleep(0.5) 
@@ -987,9 +999,15 @@ class WbControllerUltraApp(tk.Frame):
 
         channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
 
-        os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
+
+        stdin, stdout, stderr = client.exec_command("""bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string )
+        
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
         print("Setting HV values...")
-        os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string+""" ' """)
+        stdin, stdout, stderr = client.exec_command("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
+        print("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
+
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string+""" ' """)
 
 
     def save_parameter_clicked(self, event=None):
@@ -1114,24 +1132,24 @@ class WbControllerUltraApp(tk.Frame):
         
             with open(name, "w") as f:
                 f.write(str(datetime.datetime.now())+"\n")
-                f.write("Temperature="+str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + """ 'bash get_param.sh' """, shell=True)[16:18])+"\n") 
-                f.write("Channel\tStart Th\tStop Th\tLead\tTail\n")
+                # f.write("Temperature="+str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + """ 'bash get_param.sh' """, shell=True)[16:18])+"\n") 
+                # f.write("Channel\tStart Th\tStop Th\tLead\tTail\n")
 
-                for ch in re.findall(r'\d+',channel_string):
-                    tail_cmd="./SendCmd -s 0x83 -c " + str(ch)
-                    tail=re.findall(r'\d+',str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +tail_cmd+ " \'" ,shell=True)[-5:]))
+                # for ch in re.findall(r'\d+',channel_string):
+                #     tail_cmd="./SendCmd -s 0x83 -c " + str(ch)
+                #     tail=re.findall(r'\d+',str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +tail_cmd+ " \'" ,shell=True)[-5:]))
                     
-                    lead_cmd="./SendCmd -s 0x86 -c " + str(ch)
-                    lead=re.findall(r'\d+',str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +lead_cmd+ " \'" ,shell=True)[-5:]))
+                #     lead_cmd="./SendCmd -s 0x86 -c " + str(ch)
+                #     lead=re.findall(r'\d+',str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +lead_cmd+ " \'" ,shell=True)[-5:]))
 
-                    start_cmd="./SendCmd -s 0x81 -c " + str(ch)
-                    start=str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +start_cmd+ " \'" ,shell=True)[-5:])
+                #     start_cmd="./SendCmd -s 0x81 -c " + str(ch)
+                #     start=str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +start_cmd+ " \'" ,shell=True)[-5:])
 
-                    stop_cmd="./SendCmd -s 0x82 -c " + str(ch)
-                    stop=str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +stop_cmd+ " \'" ,shell=True)[-5:])
+                #     stop_cmd="./SendCmd -s 0x82 -c " + str(ch)
+                #     stop=str(subprocess.check_output("""ssh """ + username + """@""" + ip_address + " \' " +stop_cmd+ " \'" ,shell=True)[-5:])
 
 
-                    f.write(str(ch)+"\t"+str(start)+"\t"+str(stop)+"\t"+str(lead)+"\t"+str(tail)+"\n")
+                #     f.write(str(ch)+"\t"+str(start)+"\t"+str(stop)+"\t"+str(lead)+"\t"+str(tail)+"\n")
 
                 f.write("Integration interval :" +str(self.ent_interval.get()) +" sec - Delay: "+str(self.ent_delay.get()) +" sec\n")
         self.thread_start = threading.Thread(target=self.t_start_daq)
@@ -1148,9 +1166,11 @@ class WbControllerUltraApp(tk.Frame):
         e_acquisition.clear()
 
         print("Stopping acquisition...")
-        os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
+        stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
         time.sleep(1)
-        os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
+        stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
         time.sleep(1)
         if self.arch=="arm":
             os.system("killall RateParser_arm")     
