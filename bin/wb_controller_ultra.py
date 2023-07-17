@@ -28,11 +28,14 @@ import platform
 
 parser = argparse.ArgumentParser(description="Waveboard controller - wirtten by Lorenzo Campana", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-d", "--dry", action="store_true", help="Dry run to run the program without connection to the waveboard")
+parser.add_argument("-m", "--monkey", action="store_true", help="Start the waveboard controller in monkey mode @('_')@")
+parser.add_argument("-p", "--parameter", action="store", default="startup_parameter.json",type=str, help="Spcify the startup parameter json file to load at startup")
+
+
 
 args = parser.parse_args()
 
 print(args)
-print(getattr(args, 'dry'))
 
 date = datetime.datetime.now()
 
@@ -62,8 +65,7 @@ client = SSHClient()
 client.load_system_host_keys()
 
 if getattr(args, 'dry')==False:
-    client.connect(ip_address, username=username, password="root")
-    print("ciao")
+    client.connect(ip_address, username=username, password=password)
 
 
 e_monitor=threading.Event()
@@ -102,9 +104,6 @@ def progressBar(iterable, prefix = '', suffix = '', decimals = 1, length = 100, 
     # Print New Line on Complete
     print()
 
-
-
-
 def abortable_sleep(secs, abort_event):
     abort_event.wait(timeout=secs)
     abort_event.clear()
@@ -135,13 +134,13 @@ def v_adc(v_bias, t_board,ch):
     return (v_bias-v_bias_conv_all[wvb_active][ch][1])/v_bias_conv_all[wvb_active][ch][0]
 
 
-
 #da usare con waveboard 1.0 con tempertura funzionante 
 #t_board = float(subprocess.check_output("""ssh """ + username + """@""" + ip_address + """ 'bash get_param.sh' """, shell=True)[16:21]) 
 
 def t_daq_read_tcp():
     print("Starting DaqReadTcp...")
     stdin, stdout, stderr = client.exec_command("./DaqReadTcp")
+    print(stdout.readlines())
 
 
 class WbControllerUltraApp(tk.Frame):
@@ -149,8 +148,7 @@ class WbControllerUltraApp(tk.Frame):
     def __init__(self):
         super().__init__()
         self.initUI()
-        
-        
+
     def activate_wvb1(self):
         global wvb_active
         
@@ -251,11 +249,8 @@ class WbControllerUltraApp(tk.Frame):
         select_board_menu.add_command(label="WaveBoard 4")
         
         fileMenu.add_cascade(label="Select Board", menu=select_board_menu, underline=0)
-        
-        
 
         menubar.add_cascade(label="File", underline=0, menu=fileMenu)
-        
         
         save_parameter_menu=tk.Menu(acquisitionMenu)
 
@@ -263,14 +258,13 @@ class WbControllerUltraApp(tk.Frame):
         acquisitionMenu.add_command(label="Save Parameter",command=self.save_parameter_clicked ,underline=0)
         acquisitionMenu.add_command(label="Load Parameter",command=self.load_parameter_clicked ,underline=0)
 
-#         
+     
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(expand=True)
         self.frm_data_acquisition = ttk.Frame(self.notebook, height=500)
         self.frm_plot = ttk.Frame(self.notebook)
         self.frm_rate = ttk.Frame(self.notebook)
         self.frm_calibration = ttk.Frame(self.notebook)
-        
         
 
         self.frm_data_acquisition.pack(fill='both', expand=True)
@@ -283,11 +277,9 @@ class WbControllerUltraApp(tk.Frame):
         self.notebook.add(self.frm_rate, text='Rate Monitor')
         self.notebook.add(self.frm_calibration, text='Sensor Calibration')
     
-    
-    
-        #calibration tab
-    
         
+
+        #calibration tab
         
         self.frm_cal_ch = ttk.Labelframe(self.frm_calibration)
         self.frm_cal_ch.configure(text="Sensor configuration")
@@ -626,18 +618,6 @@ class WbControllerUltraApp(tk.Frame):
         self.frm_plot_setting.configure(text="Plot options")
         self.frm_plot_setting.grid(row='0', column='1', padx='5', pady='5')
 
-#         self.lbl_plot_type = tk.Label(self.frm_plot_setting)
-#         self.lbl_plot_type.configure(text="Plot waveform from")
-#         self.lbl_plot_type.grid(row='0', column='0', padx='5', pady='5', columnspan="1")
-
-#         self.plot_type_variable = tk.StringVar(root)
-#         self.plot_type = ["Random", "Beginning"]
-#         self.plot_type_variable.set("Beginning")
-
-#         self.btn_plot_type = tk.OptionMenu(self.frm_plot_setting, self.plot_type_variable,*self.plot_type)
-#         self.btn_plot_type.grid(row='0', column='1', padx='5', pady='5')
-
-
         self.overlap_variable=tk.IntVar()
         self.btn_overlap=tk.Checkbutton(self.frm_plot_setting, variable=self.overlap_variable)
         self.btn_overlap.configure(relief='raised', text="Overlap")
@@ -653,17 +633,6 @@ class WbControllerUltraApp(tk.Frame):
         self.frm_histo_setting = ttk.Labelframe(self.frm_plot)
         self.frm_histo_setting.configure(text="Histogram options")
         self.frm_histo_setting.grid(row='1', column='1', padx='5', pady='5')
-
-#         self.lbl_lead = tk.Label(self.frm_histo_setting)
-#         self.lbl_lead.configure(text="Pedestal sample")
-#         self.lbl_lead.grid(row='0', column='0', padx='5', pady='5', columnspan="1")
-# 
-#         self.ent_pedestal=tk.Entry(self.frm_histo_setting)
-#         self.ent_pedestal.configure(width='4')
-#         self.ent_pedestal.grid(row='0', column='1', padx='2', pady='2', columnspan="1")
-# 
-
-
 
 
         self.lbl_bin = tk.Label(self.frm_histo_setting)
@@ -685,19 +654,54 @@ class WbControllerUltraApp(tk.Frame):
         self.btn_histo_type.grid(row='2', column='0', padx='5', pady='5')
 
 
-#         self.pedestal_variable=tk.IntVar()
-#         self.btn_pedestal=tk.Checkbutton(self.frm_histo_setting, variable=self.pedestal_variable)
-#         self.btn_pedestal.configure(relief='raised', text="Pedestal\nsubtraction")
-#         self.btn_pedestal.grid(row='0', column='2', padx='5', pady='5')
-
         self.btn_histo = tk.Button(self.frm_histo_setting)
         self.btn_histo.configure(text="Histogram")
         self.btn_histo.grid(row='2', column='1', padx='5', pady='5')
-        self.btn_histo.bind('<Button-1>', self.histo_clicked, add='')        
+        self.btn_histo.bind('<Button-1>', self.histo_clicked, add='')   
 
 
-        # Main widget
-#         self.mainwindow = master
+        if getattr(args, 'monkey')==True:
+            self.frm_monkey = ttk.Frame(self.notebook)
+            self.frm_monkey.pack(fill='both', expand=True)
+            self.notebook.add(self.frm_monkey, text='M mode')
+            self.notebook.select(4)
+
+
+            self.btn_m_start = ttk.Button(self.frm_monkey)
+            self.btn_m_start.configure(text="Start M acquisition")
+            self.btn_m_start.grid(column="0", row="2", pady="10", padx="10")
+            self.btn_m_start.bind('<Button-1>', self.start_monkey_clicked, add='')
+
+
+            self.btn_m_stop = ttk.Button(self.frm_monkey)
+            self.btn_m_stop.configure(text="Stop M acquisition")
+            self.btn_m_stop.grid(column="1", row="2", pady="10", padx="10")
+            self.btn_m_stop.bind('<Button-1>', self.stop_monkey_clicked, add='')
+
+            self.lbl_m_near_bkg=tk.Label(self.frm_monkey)
+            self.lbl_m_near_bkg.configure(text="Near Background")
+            self.lbl_m_near_bkg.grid(row="0",column="0",pady="20", padx="20")
+
+
+            self.ent_m_near_bkg=tk.Entry(self.frm_monkey)
+            self.ent_m_near_bkg.configure(width='3')
+            self.ent_m_near_bkg.grid(column="1", row="0",pady="20", padx="20" )
+
+            self.m_mode_var=tk.StringVar(root)
+            self.m_mode_option= ["Dynamic", "Fixed"]
+            self.m_mode_var.set("Dynamic")
+            
+            self.btn_m_mode= tk.OptionMenu(self.frm_monkey, self.m_mode_var,*self.m_mode_option)
+            self.btn_m_mode.grid(row="1", column="1", padx='30', pady='30')
+           
+            self.lbl_m_mode=tk.Label(self.frm_monkey)
+            self.lbl_m_mode.configure(text="Visual Mode")
+            self.lbl_m_mode.grid(row="1",column="0",pady="20", padx="20")
+
+            self.ent_delay.delete(0,'end')
+            self.ent_delay.insert(0,"0")
+            self.ent_interval.delete(0,'end')
+            self.ent_interval.insert(0,"1")
 
 
         def t_monitor():
@@ -733,8 +737,6 @@ class WbControllerUltraApp(tk.Frame):
                 #print("Temperature field updated")
                 abortable_sleep(interval,e_timer)
 
-
-
         #INITIALIZE STARTUP PARAMETERS
         if getattr(args, 'dry')==False:
 
@@ -743,9 +745,53 @@ class WbControllerUltraApp(tk.Frame):
             thread_monitor.deamon = True
             thread_monitor.start()
 
-    
+   
+    def start_monkey_clicked(self,event=None):
+        print("simia start")
 
-    
+
+        channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
+        name=str(self.ent_logfile.get())
+        self.daq_type="rate"
+
+        # Get the current date and time
+        current_datetime = datetime.now()
+        date_str = current_datetime.strftime("%Y-%m-%d")
+        time_str = current_datetime.strftime("%H-%M-%S")
+
+        # Create the logfile name with date and time
+        log_filename = f"logfile_{date_str}_{time_str}.txt"
+                
+        with open(log_filename, "w") as f:
+            f.write(str(datetime.datetime.now())+"\n")
+
+        self.thread_start = threading.Thread(target=self.t_start_daq)
+        self.thread_start.deamon = True
+        self.thread_start.start()
+
+        e_timer.set()
+        e_acquisition.set()
+ 
+
+    def stop_monkey_clicked(self,event=None):
+        print("simia stop")
+
+        channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
+
+        e_log.clear()
+        e_acquisition.clear()
+
+        print("Stopping acquisition...")
+        stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
+        time.sleep(1)
+        stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
+        time.sleep(1)
+        if self.arch=="arm":
+            os.system("killall RateParser_arm")     
+        elif self.arch=="x86":
+            os.system("killall RateParser_x86") 
     
     def start_calibration_clicked(self, event=None):
         
@@ -769,9 +815,13 @@ class WbControllerUltraApp(tk.Frame):
 
     def initialize_board(self):
 
+        if getattr(args, 'monkey')==True:
+            with open(getattr(args, 'parameter')) as f:
+                param=json.load(f)
 
-        with open("startup_parameter.json") as f:
-            param=json.load(f)
+        else:
+            with open("startup_parameter.json") as f:
+                param=json.load(f)
 
         for ch in np.arange(0,12):
             
@@ -786,6 +836,10 @@ class WbControllerUltraApp(tk.Frame):
             self.ent_lead[ch].insert(0,str(param["lead"][ch]))
             self.ent_tail[ch].insert(0,str(param["tail"][ch]))
             self.ent_vbias[ch].insert(0,str(param["v_bias"][ch]))
+
+            if str(ch) in param["active_ch"]:
+                self.btn_ch[ch].select()
+
 
 
         channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
@@ -854,6 +908,11 @@ class WbControllerUltraApp(tk.Frame):
                 self.ent_lead[ch].insert(0,str(param["lead"][ch]))
                 self.ent_tail[ch].insert(0,str(param["tail"][ch]))
                 self.ent_vbias[ch].insert(0,str(param["v_bias"][ch]))
+
+                self.btn_ch[ch].deselect()
+                if str(ch) in param["active_ch"]:
+                    self.btn_ch[ch].select()
+
 
     def t_start_daq(self):  
         daq_read_tcp_thread = threading.Thread(target=t_daq_read_tcp)
@@ -1011,7 +1070,7 @@ class WbControllerUltraApp(tk.Frame):
 
 
     def save_parameter_clicked(self, event=None):
-        param={"start_th":[],"stop_th":[],"v_bias":[],"lead":[],"tail":[]}
+        param={"start_th":[],"stop_th":[],"v_bias":[],"lead":[],"tail":[], "active_ch":[]}
         
         for ch in np.arange(0,12):
             param["start_th"].append(self.ent_start[ch].get())
@@ -1019,6 +1078,9 @@ class WbControllerUltraApp(tk.Frame):
             param["lead"].append(self.ent_lead[ch].get())
             param["tail"].append(self.ent_tail[ch].get())
             param["v_bias"].append(self.ent_vbias[ch].get())
+
+            if self.ch_status[ch].get():
+                param["active_ch"].append(str(ch))
 
         name = tk.filedialog.asksaveasfilename(filetypes=(("Json File", "*.json"),),title="Choose a file")
 

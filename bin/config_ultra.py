@@ -1,6 +1,7 @@
 import numpy as np
 
 username = "root"
+password = "pippo123"
 ip_address = "192.168.137.30"
 port = 5000
 iob_delay = "25 25 20 20 18 18 18 18 25 25 20 20"
