@@ -16,6 +16,7 @@ from paramiko import SSHClient
 import paramiko
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
 NavigationToolbar2Tk)
+from matplotlib.figure import Figure
 import matplotlib
 matplotlib.use('TkAgg')
 from config_ultra import *
@@ -24,6 +25,7 @@ import re
 import argparse
 import gc
 import platform
+from queue import Queue
 
 
 parser = argparse.ArgumentParser(description="Waveboard controller - wirtten by Lorenzo Campana", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -130,7 +132,7 @@ def convert_v_to_adc(element,ch):
     return (v_to_adc_all[wvb_active][ch][1]+element*v_to_adc_all[wvb_active][ch][0])
 
 #CONVERSIONE VBIAS SENZA CORREZIONE PER TEMPERATURA
-def v_adc(v_bias, t_board,ch):
+def v_adc(v_bias,ch):
     return (v_bias-v_bias_conv_all[wvb_active][ch][1])/v_bias_conv_all[wvb_active][ch][0]
 
 
@@ -217,7 +219,6 @@ class WbControllerUltraApp(tk.Frame):
         print("Board configuration changed")
         self.lbl_wvb.configure(text='WVB '+str(wvb_active))
 
-        
     def initUI(self):
 
         architecture = platform.machine()
@@ -703,6 +704,18 @@ class WbControllerUltraApp(tk.Frame):
             self.ent_interval.delete(0,'end')
             self.ent_interval.insert(0,"1")
 
+            self.monkey_fig = Figure(figsize=(6, 4), dpi=100)
+            self.monkey_ax = self.monkey_fig.add_subplot(111)
+
+            self.monkey_ax.bar(["ch0","ch1","ch2","ch3","ch4","ch5","ch6","ch7","ch8","ch9","ch10","ch11"],[0,0,0,0,0,0,0,0,0,0,0,0])
+            self.monkey_ax.set_xlabel('Channels')
+            self.monkey_ax.set_ylabel('Values')
+            self.monkey_ax.set_title('Data from logfile.txt')
+
+            self.canvas = FigureCanvasTkAgg(self.monkey_fig, master=self.frm_monkey)
+            self.canvas.draw()
+            self.canvas.get_tk_widget().grid(row="0",column="3", rowspan="3")
+
 
         def t_monitor():
             global t_board
@@ -749,29 +762,98 @@ class WbControllerUltraApp(tk.Frame):
     def start_monkey_clicked(self,event=None):
         print("simia start")
 
+        data_queue = Queue()  # Queue to pass data from the file-reading thread to the main thread
 
         channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
-        name=str(self.ent_logfile.get())
         self.daq_type="rate"
 
+        ch_list=re.findall(r'\d+', channel_string)
+
         # Get the current date and time
-        current_datetime = datetime.now()
+        current_datetime = datetime.datetime.now()
         date_str = current_datetime.strftime("%Y-%m-%d")
         time_str = current_datetime.strftime("%H-%M-%S")
 
         # Create the logfile name with date and time
-        log_filename = f"logfile_{date_str}_{time_str}.txt"
+        self.monkey_filename = f"logfile_{date_str}_{time_str}.txt"
                 
-        with open(log_filename, "w") as f:
+        with open(self.monkey_filename, "w") as f:
             f.write(str(datetime.datetime.now())+"\n")
 
-        self.thread_start = threading.Thread(target=self.t_start_daq)
-        self.thread_start.deamon = True
-        self.thread_start.start()
+        self.ent_logfile.delete(0,'end')
+        self.ent_logfile.insert(0,self.monkey_filename)
+
+        # self.thread_start = threading.Thread(target=self.t_start_daq)
+        # self.thread_start.deamon = True
+        # self.thread_start.start()
 
         e_timer.set()
         e_acquisition.set()
- 
+
+        def write_to_file_thread(logfile):
+            while e_acquisition.is_set():
+                # Generate six random numbers
+                random_numbers = [random.randint(1, 400) for _ in range(len(ch_list))]
+
+                with open(logfile, "a") as file:
+                    # Write the random numbers to the logfile with timestamp and label
+                    current_datetime = datetime.datetime.now()
+                    timestamp = current_datetime.second + current_datetime.minute * 60 + current_datetime.hour *60*60+ current_datetime.day*60*60*24
+                    for i, num in enumerate(random_numbers):
+                        file.write(f"ch {ch_list[i]}: {num} {timestamp}\n")
+
+                time.sleep(1)  # Wait for one second
+
+
+        def read_file_and_update_queue_thread(logfile):
+            while e_acquisition.is_set():
+                with open(logfile, "r") as file:
+                    lines = file.readlines()[1:]
+
+                # Parse the numbers from the logfile
+                new_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                for line in lines:
+                        channel = int(re.findall(r'([\d.]+)\D+', line)[0])
+                        value = float(re.findall(r'([\d.]+)\D+', line)[1])
+                        new_data[channel] = value
+
+                # Put the new data in the queue
+                data_queue.put(new_data)
+
+                time.sleep(0.5)  # Wait for a short interval
+
+        def update_graph():
+            while e_acquisition.is_set():
+
+                # Check if there is new data in the queue
+                if not data_queue.empty():
+                    data = data_queue.get()
+
+                    self.monkey_ax.clear()  # Clear the previous plot
+                    channels = ch_list
+                    if self.m_mode_var.get() == "Dynamic":
+                        self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],data)
+                    elif self.m_mode_var.get() == "Fixed":
+                        near_bkg=int(self.ent_m_near_bkg.get())
+                        self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],data)
+                        self.monkey_ax.set_ylim(0, near_bkg*5)
+
+
+                    self.canvas.draw()
+                    #plt.pause(0.1)  # Pause to allow the graph to update
+
+
+        write_thread = threading.Thread(target=write_to_file_thread, args=(self.ent_logfile.get(),))
+        write_thread.start()
+
+        read_thread = threading.Thread(target=read_file_and_update_queue_thread, args=(self.ent_logfile.get(),))
+        read_thread.start()
+
+        graph_thread = threading.Thread(target=update_graph)
+        graph_thread.start()
+
+
+
 
     def stop_monkey_clicked(self,event=None):
         print("simia stop")
@@ -781,17 +863,17 @@ class WbControllerUltraApp(tk.Frame):
         e_log.clear()
         e_acquisition.clear()
 
-        print("Stopping acquisition...")
-        stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
-        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
-        time.sleep(1)
-        stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
-        #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
-        time.sleep(1)
-        if self.arch=="arm":
-            os.system("killall RateParser_arm")     
-        elif self.arch=="x86":
-            os.system("killall RateParser_x86") 
+        # print("Stopping acquisition...")
+        # stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
+        # #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
+        # time.sleep(1)
+        # stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
+        # #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
+        # time.sleep(1)
+        # if self.arch=="arm":
+        #     os.system("killall RateParser_arm")     
+        # elif self.arch=="x86":
+        #     os.system("killall RateParser_x86") 
     
     def start_calibration_clicked(self, event=None):
         
@@ -805,8 +887,6 @@ class WbControllerUltraApp(tk.Frame):
                 np.append(self.cal_ch, self.cal_channel_variable[ch].get())
                 
                 print(self.cal_ch)
-            
-    
 
     def open_logfile_clicked(self, event=None):
         name = tk.filedialog.asksaveasfilename(filetypes=(("Rate Logfile", "*.txt"),),title="Choose a file")
@@ -872,8 +952,6 @@ class WbControllerUltraApp(tk.Frame):
         stdin, stdout, stderr = client.exec_command("""bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string)
         print(channel_string)
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
-    
-        
 
     def save_binary_clicked(self, event=None):
 
@@ -888,7 +966,6 @@ class WbControllerUltraApp(tk.Frame):
     def initialize_clicked(self, event=None):
         self.initialize_board()
     
-
     def load_parameter_clicked(self, event=None):
         name = tk.filedialog.askopenfilename(filetypes=(("Json File", "*.json"),),title="Choose a file")
         if name!=() and name != '':
@@ -912,7 +989,6 @@ class WbControllerUltraApp(tk.Frame):
                 self.btn_ch[ch].deselect()
                 if str(ch) in param["active_ch"]:
                     self.btn_ch[ch].select()
-
 
     def t_start_daq(self):  
         daq_read_tcp_thread = threading.Thread(target=t_daq_read_tcp)
@@ -940,10 +1016,10 @@ class WbControllerUltraApp(tk.Frame):
             #print("setting window lenght")
             #for ch in re.findall(r'\d+',channel_string):
                 #stdin, stdout, stderr = client.exec_command("./SendCmd -s 0x03 -c " +str(ch)+" -a "+ str(hex(int(self.ent_tail[int(ch)].get()))))
-#                 stdin, stdout, stderr = client.exec_command("./SendCmd -s 0x06 -c " +str(ch)+" -a "+ str(hex(int(self.ent_lead[int(ch)].get()))))
+                #stdin, stdout, stderr = client.exec_command("./SendCmd -s 0x06 -c " +str(ch)+" -a "+ str(hex(int(self.ent_lead[int(ch)].get()))))
 
                 #print("SendCmd -s 0x03 -c " +str(ch)+" -a "+ str(hex(int(self.ent_tail[int(ch)].get())))) 
-#                 print("SendCmd -s 0x06 -c " +str(ch)+" -a "+ str(hex(int(self.ent_lead[int(ch)].get())))) 
+                #print("SendCmd -s 0x06 -c " +str(ch)+" -a "+ str(hex(int(self.ent_lead[int(ch)].get())))) 
           
 
 
@@ -979,14 +1055,11 @@ class WbControllerUltraApp(tk.Frame):
             for ch in re.findall(r'\d+',channel_string):
                 stdin, stdout, stderr = client.exec_command("./SendCmd -s 0x03 -c " +str(ch)+" -a "+ str(hex(int(self.ent_tail[int(ch)].get()))))
                 print("SendCmd -s 0x03 -c " +str(ch)+" -a "+ str(hex(int(self.ent_tail[int(ch)].get())))) 
-                
-            
 
     def start_daq_clicked(self, event=None):
         
         name = self.ent_name_binary.get()
         
-   
         os.system("touch "+ str(self.ent_name_binary.get()))
 
         if name != "":
@@ -1053,7 +1126,6 @@ class WbControllerUltraApp(tk.Frame):
 
         self.lbl_daq_status.configure(text="Board ready!")
 
-
     def set_parameter_clicked(self, event=None):
 
         channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
@@ -1067,7 +1139,6 @@ class WbControllerUltraApp(tk.Frame):
         print("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
 
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string+""" ' """)
-
 
     def save_parameter_clicked(self, event=None):
         param={"start_th":[],"stop_th":[],"v_bias":[],"lead":[],"tail":[], "active_ch":[]}
@@ -1087,7 +1158,6 @@ class WbControllerUltraApp(tk.Frame):
         if name!=() and name != '' :
             with open(name, 'w') as f:
                 json.dump(param, f)    
-
 
     def get_parameter_string(self):
         
@@ -1156,7 +1226,7 @@ class WbControllerUltraApp(tk.Frame):
                 v_bias[ch] = self.ent_vbias[ch].get()
                 if v_bias[ch] != '':
                     #v_bias[ch] = (float(v_bias[ch])-self.v_bias_conv[ch][1])/self.v_bias_conv[ch][0]
-                    v_bias[ch]=v_adc(float(v_bias[ch]), t_board,ch)
+                    v_bias[ch]=v_adc(float(v_bias[ch]),ch)
                 else:
                     print("Insert value of v bias on ch "+str(ch)+". Value set to zero")
                     v_bias[ch] = 0
@@ -1238,8 +1308,6 @@ class WbControllerUltraApp(tk.Frame):
             os.system("killall RateParser_arm")     
         elif self.arch=="x86":
             os.system("killall RateParser_x86") 
-
-
 
     def open_analysis_clicked(self, event=None):
         name = tk.filedialog.askopenfilename(filetypes=(("Binary file", "*.bin"),),title="Choose a file")
@@ -1460,8 +1528,7 @@ class WbControllerUltraApp(tk.Frame):
             fig.canvas.mpl_connect('button_press_event',onclick_beginning)
             fig.canvas.mpl_connect('close_event',on_close)            
             plt.show()
-
-            
+  
     def histo_clicked(self, event=None):
         
         bins=int(self.ent_bin.get())
@@ -1600,34 +1667,33 @@ class WbControllerUltraApp(tk.Frame):
                 ax.hist(maximum, bins=bins)
                 plt.show()
 
-#             if self.histo_type_variable.get()=="Charge":
-#                 charge=[]
-#                 with open(filename_txt) as data:
-#                     for x in progressBar(data.read().splitlines()):
-#                         x_int=np.array([convert_adc_to_v(y,int(ch)) for y in np.array(x.split("\t"))[:-1].astype(int) if y!=""])
-#                         
-#                         if self.trigger_variable.get():
-#                             if np.max(x_int)>=float(self.ent_trigger.get()):
-#                                 if self.pedestal_variable.get():
-#                                     pedestal=int(self.ent_pedestal.get())
-#                                     charge.append((x_int*(4/50)).sum()-(x_int[:pedestal].mean()*x_int.size))
-#                                 else:
-#                                     charge.append((x_int*(4/50)).sum())
-#                         else:
-#                             if self.pedestal_variable.get():
-#                                 pedestal=int(self.ent_pedestal.get())
-#                                 charge.append((x_int*(4/50)).sum()-(x_int[:pedestal].mean()*x_int.size))
-#                             else:
-#                                 charge.append((x_int*(4/50)).sum())
-#          
-# 
-#                 fig,ax = plt.subplots()
-#                 ax.set_xlabel("Charge (pC)")
-#                 ax.set_ylabel("Counts")
-#                 ax.set_title("Charge histogram") 
-#                 ax.hist(charge,bins=bins)
-#                 plt.show()
-# 
+                 # if self.histo_type_variable.get()=="Charge":
+                 #     charge=[]
+                 #     with open(filename_txt) as data:
+                 #         for x in progressBar(data.read().splitlines()):
+                 #             x_int=np.array([convert_adc_to_v(y,int(ch)) for y in np.array(x.split("\t"))[:-1].astype(int) if y!=""])
+                             
+                 #             if self.trigger_variable.get():
+                 #                 if np.max(x_int)>=float(self.ent_trigger.get()):
+                 #                     if self.pedestal_variable.get():
+                 #                         pedestal=int(self.ent_pedestal.get())
+                 #                         charge.append((x_int*(4/50)).sum()-(x_int[:pedestal].mean()*x_int.size))
+                 #                     else:
+                 #                         charge.append((x_int*(4/50)).sum())
+                 #             else:
+                 #                 if self.pedestal_variable.get():
+                 #                     pedestal=int(self.ent_pedestal.get())
+                 #                     charge.append((x_int*(4/50)).sum()-(x_int[:pedestal].mean()*x_int.size))
+                 #                 else:
+                 #                     charge.append((x_int*(4/50)).sum())
+              
+                 #     fig,ax = plt.subplots()
+                 #     ax.set_xlabel("Charge (pC)")
+                 #     ax.set_ylabel("Counts")
+                 #     ax.set_title("Charge histogram") 
+                 #     ax.hist(charge,bins=bins)
+                 #     plt.show()
+ 
             if self.histo_type_variable.get()=="Duration":
                 
                 if self.trigger_variable.get():
@@ -1644,12 +1710,6 @@ class WbControllerUltraApp(tk.Frame):
                 ax.set_title("Duration histogram") 
                 ax.hist(duration,bins=bins)
                 plt.show()
-
-
-
-
-            
-
 
     def run(self):
         self.mainwindow.mainloop()
