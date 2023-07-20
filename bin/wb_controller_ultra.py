@@ -220,12 +220,13 @@ class WbControllerUltraApp(tk.Frame):
         self.lbl_wvb.configure(text='WVB '+str(wvb_active))
 
     def initUI(self):
-
+        
         architecture = platform.machine()
+        print(architecture)
         if "x86" in architecture:
             self.arch="x86"
 
-        elif "arm" in architecture:
+        elif "aarch64" in architecture:
             self.arch="arm"
 
         print(self.arch)
@@ -670,51 +671,54 @@ class WbControllerUltraApp(tk.Frame):
 
             self.btn_m_start = ttk.Button(self.frm_monkey)
             self.btn_m_start.configure(text="Start M acquisition")
-            self.btn_m_start.grid(column="0", row="2", pady="10", padx="10")
+            self.btn_m_start.grid(column="0", row="3", pady="1", padx="1")
             self.btn_m_start.bind('<Button-1>', self.start_monkey_clicked, add='')
 
 
             self.btn_m_stop = ttk.Button(self.frm_monkey)
             self.btn_m_stop.configure(text="Stop M acquisition")
-            self.btn_m_stop.grid(column="1", row="2", pady="10", padx="10")
+            self.btn_m_stop.grid(column="1", row="3", pady="1", padx="1")
             self.btn_m_stop.bind('<Button-1>', self.stop_monkey_clicked, add='')
 
             self.lbl_m_near_bkg=tk.Label(self.frm_monkey)
             self.lbl_m_near_bkg.configure(text="Near Background")
-            self.lbl_m_near_bkg.grid(row="0",column="0",pady="20", padx="20")
+            self.lbl_m_near_bkg.grid(row="0",column="0",pady="1", padx="1")
 
 
             self.ent_m_near_bkg=tk.Entry(self.frm_monkey)
             self.ent_m_near_bkg.configure(width='3')
-            self.ent_m_near_bkg.grid(column="1", row="0",pady="20", padx="20" )
+            self.ent_m_near_bkg.grid(column="1", row="0",pady="1", padx="1" )
 
             self.m_mode_var=tk.StringVar(root)
             self.m_mode_option= ["Dynamic", "Fixed"]
             self.m_mode_var.set("Dynamic")
             
             self.btn_m_mode= tk.OptionMenu(self.frm_monkey, self.m_mode_var,*self.m_mode_option)
-            self.btn_m_mode.grid(row="1", column="1", padx='30', pady='30')
+            self.btn_m_mode.grid(row="1", column="1", padx='1', pady='1')
            
             self.lbl_m_mode=tk.Label(self.frm_monkey)
             self.lbl_m_mode.configure(text="Visual Mode")
-            self.lbl_m_mode.grid(row="1",column="0",pady="20", padx="20")
+            self.lbl_m_mode.grid(row="1",column="0",pady="1", padx="1")
 
-            self.ent_delay.delete(0,'end')
-            self.ent_delay.insert(0,"0")
-            self.ent_interval.delete(0,'end')
-            self.ent_interval.insert(0,"1")
 
-            self.monkey_fig = Figure(figsize=(6, 4), dpi=100)
+            self.monkey_fig = Figure(figsize=(5, 3), dpi=100)
             self.monkey_ax = self.monkey_fig.add_subplot(111)
 
-            self.monkey_ax.bar(["ch0","ch1","ch2","ch3","ch4","ch5","ch6","ch7","ch8","ch9","ch10","ch11"],[0,0,0,0,0,0,0,0,0,0,0,0])
-            self.monkey_ax.set_xlabel('Channels')
-            self.monkey_ax.set_ylabel('Values')
-            self.monkey_ax.set_title('Data from logfile.txt')
+            self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],[0,0,0,0,0,0,0,0,0,0,0,0])
 
+            self.btn_m_bkg = ttk.Button(self.frm_monkey)
+            self.btn_m_bkg.configure(text="Background")
+            self.btn_m_bkg.grid(column="0", row="2", pady="1", padx="1")
+            self.btn_m_bkg.bind('<Button-1>', self.bkg_monkey_clicked, add='')
+            
+            self.lbl_m_bkg=tk.Label(self.frm_monkey)
+            self.lbl_m_bkg.configure(text=" ")
+            self.lbl_m_bkg.grid(row="2",column="1",pady="1", padx="1")
+
+            
             self.canvas = FigureCanvasTkAgg(self.monkey_fig, master=self.frm_monkey)
             self.canvas.draw()
-            self.canvas.get_tk_widget().grid(row="0",column="3", rowspan="3")
+            self.canvas.get_tk_widget().grid(row="0",column="3", rowspan="4")
 
 
         def t_monitor():
@@ -761,6 +765,11 @@ class WbControllerUltraApp(tk.Frame):
    
     def start_monkey_clicked(self,event=None):
         print("simia start")
+        
+        self.ent_delay.delete(0,'end')
+        self.ent_delay.insert(0,"0")
+        self.ent_interval.delete(0,'end')
+        self.ent_interval.insert(0,"1")
 
         data_queue = Queue()  # Queue to pass data from the file-reading thread to the main thread
 
@@ -783,32 +792,34 @@ class WbControllerUltraApp(tk.Frame):
         self.ent_logfile.delete(0,'end')
         self.ent_logfile.insert(0,self.monkey_filename)
 
-        # self.thread_start = threading.Thread(target=self.t_start_daq)
-        # self.thread_start.deamon = True
-        # self.thread_start.start()
+        if getattr(args, 'dry')==False:
+
+            self.thread_start = threading.Thread(target=self.t_start_daq)
+            self.thread_start.deamon = True
+            self.thread_start.start()
 
         e_timer.set()
         e_acquisition.set()
 
-        def write_to_file_thread(logfile):
-            while e_acquisition.is_set():
-                # Generate six random numbers
-                random_numbers = [random.randint(1, 400) for _ in range(len(ch_list))]
+        # def write_to_file_thread(logfile):
+            # while e_acquisition.is_set():
+                # # Generate six random numbers
+                # random_numbers = [random.randint(1, 400) for _ in range(len(ch_list))]
 
-                with open(logfile, "a") as file:
-                    # Write the random numbers to the logfile with timestamp and label
-                    current_datetime = datetime.datetime.now()
-                    timestamp = current_datetime.second + current_datetime.minute * 60 + current_datetime.hour *60*60+ current_datetime.day*60*60*24
-                    for i, num in enumerate(random_numbers):
-                        file.write(f"ch {ch_list[i]}: {num} {timestamp}\n")
+                # with open(logfile, "a") as file:
+                    # # Write the random numbers to the logfile with timestamp and label
+                    # current_datetime = datetime.datetime.now()
+                    # timestamp = current_datetime.second + current_datetime.minute * 60 + current_datetime.hour *60*60+ current_datetime.day*60*60*24
+                    # for i, num in enumerate(random_numbers):
+                        # file.write(f"ch {ch_list[i]}: {num} {timestamp}\n")
 
-                time.sleep(1)  # Wait for one second
+                # time.sleep(1)  # Wait for one second
 
 
         def read_file_and_update_queue_thread(logfile):
             while e_acquisition.is_set():
                 with open(logfile, "r") as file:
-                    lines = file.readlines()[1:]
+                    lines = file.readlines()[2:]
 
                 # Parse the numbers from the logfile
                 new_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -840,11 +851,11 @@ class WbControllerUltraApp(tk.Frame):
 
 
                     self.canvas.draw()
-                    #plt.pause(0.1)  # Pause to allow the graph to update
+                     #plt.pause(0.1)  # Pause to allow the graph to update
 
 
-        write_thread = threading.Thread(target=write_to_file_thread, args=(self.ent_logfile.get(),))
-        write_thread.start()
+         #write_thread = threading.Thread(target=write_to_file_thread, args=(self.ent_logfile.get(),))
+         #write_thread.start()
 
         read_thread = threading.Thread(target=read_file_and_update_queue_thread, args=(self.ent_logfile.get(),))
         read_thread.start()
@@ -853,9 +864,99 @@ class WbControllerUltraApp(tk.Frame):
         graph_thread.start()
 
 
+    def bkg_monkey_clicked(self, event=None):
+        print("Initializing background measurement")
+
+        self.ent_delay.delete(0,'end')
+        self.ent_delay.insert(0,"0")
+        self.ent_interval.delete(0,'end')
+        self.ent_interval.insert(0,"10")
+        
+        channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
+        self.daq_type="rate"
+        
+        # Get the current date and time
+        current_datetime = datetime.datetime.now()
+        date_str = current_datetime.strftime("%Y-%m-%d")
+        time_str = current_datetime.strftime("%H-%M-%S")
+
+        # Create the logfile name with date and time
+        self.monkey_bkg_filename = f"bkg_{date_str}_{time_str}.txt"
+                
+        with open(self.monkey_bkg_filename, "w") as f:
+            f.write("background "+str(datetime.datetime.now())+"\n")
+
+        self.ent_logfile.delete(0,'end')
+        self.ent_logfile.insert(0,self.monkey_bkg_filename)
+        
+
+        self.thread_start = threading.Thread(target=self.t_start_daq)
+        self.thread_start.deamon = True
+        self.thread_start.start()
+
+        e_timer.set()
+        e_acquisition.set()
+
+        def read_background_thread(bkg_file):
+            
+            with open(bkg_file, "r") as f:
+                l=len(f.readlines())
+                
+            while l==1:
+                time.sleep(1)
+                with open(bkg_file, "r") as f:
+                    l=len(f.readlines())
+                
+            
+            channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
+
+            e_log.clear()
+            e_acquisition.clear()
+
+            print("Stopping acquisition...")
+            stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
+            print(stdout.readlines())
+            #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
+            time.sleep(1)
+            
+            stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
+            print(stdout.readlines())
+            #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
+            time.sleep(1)
+            if self.arch=="arm":
+                os.system("killall RateParser_arm")     
+            elif self.arch=="x86":
+                os.system("killall RateParser_x86")        
+ 
+            with open(bkg_file, "r") as file:
+                lines = file.readlines()[1:]
+
+            # Parse the numbers from the logfile
+            new_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            for line in lines:
+                channel = int(re.findall(r'([\d.]+)\D+', line)[0])
+                value = float(re.findall(r'([\d.]+)\D+', line)[1])
+                new_data[channel] = value            
+            
+            channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
+            ch_list=re.findall(r'\d+', channel_string)
+            print(new_data)
+            bkg_string=""
+            print(ch_list)
+            for ch in sorted([int(i) for i in ch_list]):
+                bkg_string= bkg_string+str(new_data[int(ch)])+" "
+                print(new_data[int(ch)])
+                
+            self.lbl_m_bkg.configure(text=bkg_string)
+
+        bkg_thread = threading.Thread(target=read_background_thread, args=(self.ent_logfile.get(),))
+        bkg_thread.start()
+            
+
 
 
     def stop_monkey_clicked(self,event=None):
+
         print("simia stop")
 
         channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
@@ -863,17 +964,20 @@ class WbControllerUltraApp(tk.Frame):
         e_log.clear()
         e_acquisition.clear()
 
-        # print("Stopping acquisition...")
-        # stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
-        # #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
-        # time.sleep(1)
-        # stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
-        # #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
-        # time.sleep(1)
-        # if self.arch=="arm":
-        #     os.system("killall RateParser_arm")     
-        # elif self.arch=="x86":
-        #     os.system("killall RateParser_x86") 
+        print("Stopping acquisition...")
+        stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
+        print(stdout.readlines())
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
+        time.sleep(1)
+        
+        stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
+        print(stdout.readlines())
+        #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
+        time.sleep(1)
+        if self.arch=="arm":
+            os.system("killall RateParser_arm")     
+        elif self.arch=="x86":
+            os.system("killall RateParser_x86") 
     
     def start_calibration_clicked(self, event=None):
         
@@ -894,10 +998,12 @@ class WbControllerUltraApp(tk.Frame):
         self.ent_logfile.insert(0,name)
 
     def initialize_board(self):
-
+        global wvb_active
+        
         if getattr(args, 'monkey')==True:
             with open(getattr(args, 'parameter')) as f:
                 param=json.load(f)
+            wvb_active=3
 
         else:
             with open("startup_parameter.json") as f:
@@ -928,21 +1034,28 @@ class WbControllerUltraApp(tk.Frame):
         if param["gain"]=="high":
             print("Setting gain to 20...")
             stdin, stdout, stderr = client.exec_command("""./M4Comm -s "\$gsha#" &""")
+            print(stdout.readlines())
             #os.system("""ssh """ + username + """@""" + ip_address + """ './M4Comm -s "\$gsha#" ' &""")
 
         if param["gain"]=="low":
             print("Setting gain to 2...")
             stdin, stdout, stderr = client.exec_command("""./M4Comm -s "\$gsla#" & """)
+            print(stdout.readlines())
             #os.system("""ssh """ + username + """@""" + ip_address + """ './M4Comm -s "\$gsla#" ' &""")
 
         print("Initializing board...")
         stdin, stdout, stderr = client.exec_command("date " + date_format)
-        print(date_format)
+        print(stdout.readlines())
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'date """ + date_format  + "'")
+        
         stdin, stdout, stderr = client.exec_command("./SetTimeReg -t l")
+        print(stdout.readlines())
+        
         #os.system("""ssh """ + username + """@""" + ip_address + """ './SetTimeReg -t l'""")
         
         stdin, stdout, stderr = client.exec_command("""bash daq_set_iob_delay.sh -N "{0..11}" -F """+ iob_delay)
+        print(stdout.readlines())
+        
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_iob_delay.sh -N "{0..11}" -F """ + iob_delay+ """' """)
         
         print("Board initialized")
@@ -950,7 +1063,7 @@ class WbControllerUltraApp(tk.Frame):
         print("Setting channels parametes...")
 
         stdin, stdout, stderr = client.exec_command("""bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string)
-        print(channel_string)
+        print(stdout.readlines())
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
 
     def save_binary_clicked(self, event=None):
@@ -1008,10 +1121,8 @@ class WbControllerUltraApp(tk.Frame):
             
                 
             stdin, stdout, stderr = client.exec_command("bash daq_run_launch.sh -N "+channel_string+" -S "+start_th_string+" -P "+stop_th_string+" -L " + lead_string + " -T "+ tail_string)
-            #print ("stderr: ", stderr.readlines())
             print ( stdout.readlines())
             
-            print("bash daq_run_launch.sh -N "+channel_string+" -S "+start_th_string+" -P "+stop_th_string+" -L " + lead_string + " -T "+ tail_string)
             
             #print("setting window lenght")
             #for ch in re.findall(r'\d+',channel_string):
@@ -1048,13 +1159,13 @@ class WbControllerUltraApp(tk.Frame):
             
                 
             stdin, stdout, stderr = client.exec_command("bash daq_run_launch.sh -N "+channel_string+" -S "+start_th_string+" -P "+stop_th_string+" -L " + lead_string + " -T "+ tail_string)
-            print ("stderr: ", stderr.readlines())
             print ( stdout.readlines())
             
             print("setting window lenght")
             for ch in re.findall(r'\d+',channel_string):
                 stdin, stdout, stderr = client.exec_command("./SendCmd -s 0x03 -c " +str(ch)+" -a "+ str(hex(int(self.ent_tail[int(ch)].get()))))
-                print("SendCmd -s 0x03 -c " +str(ch)+" -a "+ str(hex(int(self.ent_tail[int(ch)].get())))) 
+                print(stdout.readlines())
+                #print("SendCmd -s 0x03 -c " +str(ch)+" -a "+ str(hex(int(self.ent_tail[int(ch)].get())))) 
 
     def start_daq_clicked(self, event=None):
         
@@ -1132,11 +1243,12 @@ class WbControllerUltraApp(tk.Frame):
 
 
         stdin, stdout, stderr = client.exec_command("""bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string )
-        
+        print(stdout.readlines())
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
         print("Setting HV values...")
         stdin, stdout, stderr = client.exec_command("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
-        print("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
+        print(stdout.readlines())
+        #print("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
 
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string+""" ' """)
 
@@ -1299,9 +1411,12 @@ class WbControllerUltraApp(tk.Frame):
 
         print("Stopping acquisition...")
         stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
+        print(stdout.readlines())
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
         time.sleep(1)
+        
         stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
+        print(stdout.readlines())
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
         time.sleep(1)
         if self.arch=="arm":
