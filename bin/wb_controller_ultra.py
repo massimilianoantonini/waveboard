@@ -212,7 +212,7 @@ class WbControllerUltraApp(tk.Frame):
         time.sleep(1)
 
         print("Changing Board configuration...")
-        stdin, stdout, stderr = client.exec_command(command_1)
+        #stdin, stdout, stderr = client.exec_command(command_1)
 
         
         self.initialize_board()
