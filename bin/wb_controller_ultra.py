@@ -713,7 +713,8 @@ class WbControllerUltraApp(tk.Frame):
     
             #self.monkey_fig,self.monkey_ax= plt.subplots(figsize=(5, 3), dpi=100)
             
-            self.tcc_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],[0,0,0,0,0,0,0,0,0,0,0,0])
+            #self.tcc_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],[0,0,0,0,0,0,0,0,0,0,0,0])
+            #self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[1,2,3,4,5,6,7,8,9,10,11,12]])
 
             self.btn_m_bkg = ttk.Button(self.frm_tcc)
             self.btn_m_bkg.configure(text="Background")
@@ -725,9 +726,9 @@ class WbControllerUltraApp(tk.Frame):
             self.lbl_m_bkg.grid(row="2",column="1",pady="1", padx="1")
 
             
-            self.canvas = FigureCanvasTkAgg(self.tcc_fig, master=self.frm_tcc)
-            self.canvas.draw()
-            self.canvas.get_tk_widget().grid(row="0",column="3", rowspan="4")
+            self.canvasTcc = FigureCanvasTkAgg(self.tcc_fig, master=self.frm_tcc)
+            self.canvasTcc.draw()
+            self.canvasTcc.get_tk_widget().grid(row="0",column="3", rowspan="4")
             
             self.wvb_active=3
             
@@ -867,13 +868,13 @@ class WbControllerUltraApp(tk.Frame):
         time_str = current_datetime.strftime("%H-%M-%S")
 
         # Create the logfile name with date and time
-        self.monkey_filename = f"logfile_{date_str}_{time_str}.txt"
+        self.tcc_filename = f"logfile_{date_str}_{time_str}.txt"
                 
-        with open(self.monkey_filename, "w") as f:
+        with open(self.tcc_filename, "w") as f:
             f.write(str(datetime.datetime.now())+"\n")
 
         self.ent_logfile.delete(0,'end')
-        self.ent_logfile.insert(0,self.monkey_filename)
+        self.ent_logfile.insert(0,self.tcc_filename)
 
         if getattr(args, 'dry')==False:
 
@@ -886,18 +887,18 @@ class WbControllerUltraApp(tk.Frame):
 
         def write_to_file_thread(logfile):
             while e_acquisition.is_set():
-                # Generate six random numbers
+                # Generate Nchan random numbers
                 random_numbers = [random.randint(1, 400) for _ in range(len(ch_list))]
                 print(random_numbers)
 
-                with open(self.monkey_filename, "a") as file:
+                with open(self.tcc_filename, "a") as file:
                     # Write the random numbers to the logfile with timestamp and label
                     current_datetime = datetime.datetime.now()
                     timestamp = current_datetime.second + current_datetime.minute * 60 + current_datetime.hour *60*60+ current_datetime.day*60*60*24
                     for i, num in enumerate(random_numbers):
                         file.write(f"ch {ch_list[i]}:\t {num}Hz {timestamp*10}\n")
 
-                time.sleep(3)  # Wait for one second
+                time.sleep(3)  # Wait for 3 seconds
 
 
         def read_file_and_update_queue_thread(logfile):
@@ -909,56 +910,68 @@ class WbControllerUltraApp(tk.Frame):
 
                 # Parse the numbers from the logfile
                 new_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                print("New Data PREE\n", new_data)
                 for line in lines:
                         channel = int(re.findall(r'([\d.]+)\D+', line)[0])
                         value = float(re.findall(r'([\d.]+)\D+', line)[1])
                         #timestamp = float(re.findall(r'([\d.]+)\D+', line)[2])
                         new_data[channel] = value
+                print("New Data POST\n", new_data)
 
                 if new_data!=old_data:
                     # Put the new data in the queue
                     data_queue.put(new_data)
                     old_data=new_data
 
+
                 else:
                     data_queue.put( [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                print("CODA\n",data_queue.qsize())
                 time.sleep(1)  # Wait for a short interval
 
         def update_graph():
             t=0
+            megaVector=[]
             data_chx12 = np.zeros((12, 12))
-            image=self.monkey_ax.imshow(data_chx12, cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
+            #image=self.tcc_ax.imshow(data_chx12, cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
+            image=self.tcc_ax.plot(megaVector)
+            #image=self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[5,5,5,5,5,5,5,5,5,5,5,5]])
             #cbar=plt.colorbar(image,ax=self.monkey_ax)
-                
             while e_acquisition.is_set():
 
                 # Check if there is new data in the queue
                 if not data_queue.empty():
                     data = data_queue.get()
-                    
-                    self.monkey_ax.clear()  # Clear the previous plot
+                    print("Presi Dati ", data)
+                    megaVector.append(data)
+                    print("MegaVector:\t",megaVector)
+                    self.tcc_ax.clear()  # Clear the previous plot
                     channels = ch_list
-                    if self.m_mode_var.get() == "Dynamic":
+                    if self.tcc_mode_var.get() == "Dynamic":
 
                         #self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],data)
-                        print(data)
+                        print("Dyn:\t",data)
                         data_chx12[:, t%12] = data
-                        image=self.monkey_ax.imshow(data_chx12,cmap="viridis"    , origin='lower', aspect='auto', extent=(0, 11, 0, 11))
+                        
+#                        image=self.tcc_ax.imshow(data_chx12,cmap="viridis"    , origin='lower', aspect='auto', extent=(0, 11, 0, 11))
+                        image=self.tcc_ax.plot(megaVector)
+                        #image=self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[12,11,10,9,8,7,6,5,4,3,2,1]])
                         #cbar.mappable.set_clim(vmin=0,vmax=data_chx12.max()) #this works
                         #cbar.draw_all()
-                        self.monkey_ax.text(0.5,11.2,"max="+str(data_chx12.max()), bbox={'facecolor':'white', 'pad':2})
+                        #self.tcc_ax.text(0.5,11.2,"max="+str(data_chx12.max()), bbox={'facecolor':'white', 'pad':2})
+                        self.tcc_ax.text(0.5,100,"CIAOOOOOO")
                         if t%12==11:
                             data_chx12 = np.zeros((12, 12))
 
 
                         t=t+1
-                    elif self.m_mode_var.get() == "Fixed":
+                    elif self.tcc_mode_var.get() == "Fixed":
                         near_bkg=int(self.ent_m_near_bkg.get())
                         data_chx12[:, -t%12] = data
-                        image=self.monkey_ax.imshow(np.array(data_chx12)/(near_bkg*4), cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
+                        image=self.tcc_ax.imshow(np.array(data_chx12)/(near_bkg*4), cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
                         t=t+1
 
-                    self.canvas.draw()
+                    self.canvasTcc.draw()
                     print("empty")
 
             time.sleep(0.2)
