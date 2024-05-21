@@ -1,0 +1,5 @@
+*.txt
+bin/*.txt
+bin/*.bin
+bin/__pycache__/*
+bin/__pycache__/config_ultra.cpython-39.pyc
