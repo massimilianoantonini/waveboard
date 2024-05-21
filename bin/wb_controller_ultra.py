@@ -252,17 +252,12 @@ class WbControllerUltraApp(tk.Frame):
 
         time.sleep(1)
 
-<<<<<<< HEAD
-        print("Changing Board configuration...")
-        #stdin, stdout, stderr = client.exec_command(command_1)
-=======
         #print("Changing Board configuration...")
         #stdin, stdout, stderr = client.exec_command(command_1)
 
         stdin, stdout, stderr = client.exec_command("bash get_param.sh -c 0")
         pedestal = (str(stdout.readlines()[0]).split("\t")[-2])
         print("PEDESTAL DOPO="+str(pedestal))
->>>>>>> 8753eed3c80a69ede3a63768475755fcf6dd5634
 
         
         #self.initialize_board()
@@ -844,10 +839,6 @@ class WbControllerUltraApp(tk.Frame):
             self.canvas.draw()
             self.canvas.get_tk_widget().grid(row="0",column="3", rowspan="4")
             
-<<<<<<< HEAD
-            self.wvb_active=3
-=======
->>>>>>> 8753eed3c80a69ede3a63768475755fcf6dd5634
             
             print(v_to_adc_all[3])
 
