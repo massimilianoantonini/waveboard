@@ -931,10 +931,12 @@ class WbControllerUltraApp(tk.Frame):
 
         def update_graph():
             t=0
+            stripLength=20
             megaVector=[]
+            channelLabels=["0","1","2","3","4","5","6","7","8","9","10","11"]
             data_chx12 = np.zeros((12, 12))
             #image=self.tcc_ax.imshow(data_chx12, cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
-            image=self.tcc_ax.plot(megaVector)
+            image=self.tcc_ax.plot(megaVector[-stripLength:])
             #image=self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[5,5,5,5,5,5,5,5,5,5,5,5]])
             #cbar=plt.colorbar(image,ax=self.monkey_ax)
             while e_acquisition.is_set():
@@ -943,7 +945,8 @@ class WbControllerUltraApp(tk.Frame):
                 if not data_queue.empty():
                     data = data_queue.get()
                     print("Presi Dati ", data)
-                    megaVector.append(data)
+                    #megaVector.append(data)
+                    megaVector.insert(t,data)
                     print("MegaVector:\t",megaVector)
                     self.tcc_ax.clear()  # Clear the previous plot
                     channels = ch_list
@@ -954,12 +957,14 @@ class WbControllerUltraApp(tk.Frame):
                         data_chx12[:, t%12] = data
                         
 #                        image=self.tcc_ax.imshow(data_chx12,cmap="viridis"    , origin='lower', aspect='auto', extent=(0, 11, 0, 11))
-                        image=self.tcc_ax.plot(megaVector)
+                        image=self.tcc_ax.plot(megaVector[-stripLength:], label=channelLabels)
+                        self.tcc_ax.legend(loc="upper left", fontsize="x-small",ncol=2)
+                        self.tcc_ax.set_title("WIDMApp Real Time TCC")
                         #image=self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[12,11,10,9,8,7,6,5,4,3,2,1]])
                         #cbar.mappable.set_clim(vmin=0,vmax=data_chx12.max()) #this works
                         #cbar.draw_all()
                         #self.tcc_ax.text(0.5,11.2,"max="+str(data_chx12.max()), bbox={'facecolor':'white', 'pad':2})
-                        self.tcc_ax.text(0.5,100,"CIAOOOOOO")
+                        self.tcc_ax.text(0.5,100,"WIDMApp0")
                         if t%12==11:
                             data_chx12 = np.zeros((12, 12))
 
