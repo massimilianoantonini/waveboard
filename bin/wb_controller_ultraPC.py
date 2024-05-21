@@ -32,7 +32,6 @@ parser = argparse.ArgumentParser(description="Waveboard controller - wirtten by 
 parser.add_argument("-d", "--dry", action="store_true", help="Dry run to run the program without connection to the waveboard")
 parser.add_argument("-m", "--monkey", action="store_true", help="Start the waveboard controller in monkey mode @('_')@")
 parser.add_argument("-p", "--parameter", action="store", default="startup_parameter.json",type=str, help="Spcify the startup parameter json file to load at startup")
-parser.add_argument("-tcc", "--tcc", action="store_true", help="Start the waveboard controller in tcc mode @('_')@")
 
 
 
@@ -124,9 +123,7 @@ def abortable_sleep(secs, abort_event):
 #     return v_adc[ch]
 
 wvb_active="1n"
-polarity="negative"
-
-
+polarity="positive"
 
 def convert_adc_to_v(element,ch):
     return ((adc_to_v_all[wvb_active][ch][1]+element*adc_to_v_all[wvb_active][ch][0])*1000)
@@ -156,13 +153,8 @@ class WbControllerUltraApp(tk.Frame):
 
     def activate_wvb1(self):
         global wvb_active
-        global polarity
-
-        if polarity=="negative":
-            wvb_active="1n"
-
-        if polarity=="positive":
-            wvb_active="1p"
+        
+        wvb_active=1
         
         self.adc_to_v=adc_to_v_all[wvb_active]
         self.v_to_adc=v_to_adc_all[wvb_active]
@@ -173,7 +165,7 @@ class WbControllerUltraApp(tk.Frame):
     def activate_wvb2(self):
         global wvb_active
         
-        wvb_active="2"
+        wvb_active=2
         
         self.adc_to_v=adc_to_v_all[wvb_active]
         self.v_to_adc=v_to_adc_all[wvb_active]
@@ -184,7 +176,7 @@ class WbControllerUltraApp(tk.Frame):
     def activate_wvb3(self):
         global wvb_active
         
-        wvb_active="3"
+        wvb_active=3
         
         self.adc_to_v=adc_to_v_all[wvb_active]
         self.v_to_adc=v_to_adc_all[wvb_active]
@@ -192,85 +184,46 @@ class WbControllerUltraApp(tk.Frame):
         print("WaveBoard 3 selezionata")
         self.lbl_wvb.configure(text='WVB 3')      
     
-    def switch_polarity(self):
-        global polarity
-        global wvb_active
-
-        stdin, stdout, stderr = client.exec_command("bash get_param.sh -c 0")
-        pedestal = (str(stdout.readlines()[0]).split("\t")[-2])
-        print("PEDESTAL PRIMA ="+str(pedestal))
-
-        if wvb_active=="1n" or wvb_active=="1p":
-            if polarity =="positive":
-                wvb_active="1n"
-                polarity="negative"
-                command_pedestal = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x03F76A75 0x03F3FE1F 0x03F82524 0x03F62D18 0x03F62C67 0x03FCF57E 0x03F62EBD 0x03F6CF4E 0x03FE3DC1 0x03FFF000 0x03F70BF8 0x03FB84D1" """
-                self.lbl_wvb.configure(text=wvb_active)      
-
-
-            elif polarity=="negative":
-                wvb_active="1p"
-                polarity="positive"
-                command_pedestal=""" bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "350 330 325 338 345 322 0x0180 0x00145 0x00145 0x00145 0x00145 0x00145" """
-                self.lbl_wvb.configure(text=wvb_active)      
-
-        if wvb_active=="2":
-            print("positive calibration unavailable, switching to negative polarity")
-            command_pedestal = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x03F76A75 0x03F3FE1F 0x03F82524 0x03F62D18 0x03F62C67 0x03FCF57E 0x03F62EBD 0x03F6CF4E 0x03FE3DC1 0x03FFF000 0x03F70BF8 0x03FB84D1" """
-            polarity="negative"
-            wvb_active="2"
-            self.lbl_wvb.configure(text=wvb_active)      
-
-        if wvb_active=="3":
-            print("positive calibration unavailable, switching to negative polarity")
-            command_pedestal = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x03F76A75 0x03F3FE1F 0x03F82524 0x03F62D18 0x03F62C67 0x03FCF57E 0x03F62EBD 0x03F6CF4E 0x03FE3DC1 0x03FFF000 0x03F70BF8 0x03FB84D1" """
-            polarity="negative"
-            wvb_active="3"
-            self.lbl_wvb.configure(text=wvb_active)
-
-        if wvb_active=="4":
-            print("positive calibration unavailable, switching to negative polarity")
-            command_pedestal = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x03F76A75 0x03F3FE1F 0x03F82524 0x03F62D18 0x03F62C67 0x03FCF57E 0x03F62EBD 0x03F6CF4E 0x03FE3DC1 0x03FFF000 0x03F70BF8 0x03FB84D1" """
-            polarity="negative"
-            wvb_active="4"
-            self.lbl_wvb.configure(text=wvb_active) 
+    def positive_polarity(self):
+        #global polarity
+        #global wvb_active
+        
+        #polarity="positive"
+        #if polarity =="positive":
+        #    wvb_active="1p"
+        #if polarity=="negative":
+        #    wvb_active="1n"
 
         #command_1 = """ cat WaveBrd_OsciMode_Positive.bit > /dev/xdevcfg """
         
-        # if wvb_active==2:
-        #     command_pedestal = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x100 0x115 0x130 0x150 0x105 0x105 0x110 0x100 0x105 0x115 0x110 0x110" """
+        #if wvb_active==2:
+        #    command_2 = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x100 0x115 0x130 0x150 0x105 0x105 0x110 0x100 0x105 0x115 0x110 0x110" """
         
-        # if wvb_active=="1p":
-        #     command_2 = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "350 330 325 338 345 322 0x0180 0x00145 0x00145 0x00145 0x00145 0x00145" """
-     
+        #if wvb_active=="1p":
+        #    command_2 = """ bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "350 330 325 338 345 322 352 320 333 332 340 330" """
 
-        print("Changing Pedestal Values...")
-        print(command_pedestal  )
-        stdin, stdout, stderr = client.exec_command(command_pedestal)
-        time.sleep(1)
+        
+
+        #print("Changing Pedestal Values...")
+
+        #stdin, stdout, stderr = client.exec_command(command_2)
        
 
-        time.sleep(1)
+        #time.sleep(1)
 
-<<<<<<< HEAD
-        print("Changing Board configuration...")
+        #
         #stdin, stdout, stderr = client.exec_command(command_1)
-=======
-        #print("Changing Board configuration...")
-        #stdin, stdout, stderr = client.exec_command(command_1)
-
-        stdin, stdout, stderr = client.exec_command("bash get_param.sh -c 0")
-        pedestal = (str(stdout.readlines()[0]).split("\t")[-2])
-        print("PEDESTAL DOPO="+str(pedestal))
->>>>>>> 8753eed3c80a69ede3a63768475755fcf6dd5634
 
         
         #self.initialize_board()
-        print("Board configuration changed")
-        self.lbl_wvb.configure(text='WVB '+str(wvb_active))
-        print(polarity)
+        #print("Board configuration changed")
+        #self.lbl_wvb.configure(text='WVB '+str(wvb_active))
+        print("Interfaccia impostata con la sola polarità positiva, non è stato cambiato nulla :)")
 
+        
     def initUI(self):
+       
+        
         
         architecture = platform.machine()
         print(architecture)
@@ -278,9 +231,6 @@ class WbControllerUltraApp(tk.Frame):
             self.arch="x86"
 
         elif "aarch64" in architecture:
-            self.arch="arm"
-
-        elif "arm64" in architecture:
             self.arch="arm"
 
         print(self.arch)
@@ -294,10 +244,9 @@ class WbControllerUltraApp(tk.Frame):
         acquisitionMenu=tk.Menu(menubar)
         
         
-        #polarity_menu=tk.Menu(fileMenu)
-        #polarity_menu.add_command(label="Positive", command=self.positive_polarity)
-        fileMenu.add_command(label="Switch Polarity", command=self.switch_polarity)
-        #fileMenu.add_cascade(label="Select polarity", menu=polarity_menu, underline=0)
+        polarity_menu=tk.Menu(fileMenu)
+        polarity_menu.add_command(label="Positive", command=self.positive_polarity)
+        fileMenu.add_cascade(label="Select polarity", menu=polarity_menu, underline=0)
         
         select_board_menu=tk.Menu(fileMenu)
         select_board_menu.add_command(label="WaveBoard 1", command=self.activate_wvb1)
@@ -496,10 +445,6 @@ class WbControllerUltraApp(tk.Frame):
         self.btn_save_param.grid(column='3', row='0',padx='10', pady='10')
         self.btn_save_param.bind('<Button-1>', self.save_parameter_clicked, add='')
         
-        self.ent_size=tk.Entry(self.frm_param_action)
-        self.ent_size.configure(width='5')
-        self.ent_size.grid(column='3', row='1',padx='10', pady='10')
-
 
 
         #MISC BUTTONS
@@ -720,69 +665,6 @@ class WbControllerUltraApp(tk.Frame):
         self.btn_histo.grid(row='2', column='1', padx='5', pady='5')
         self.btn_histo.bind('<Button-1>', self.histo_clicked, add='')   
 
-        if getattr(args, 'tcc')==True:
-            self.frm_tcc = ttk.Frame(self.notebook)
-            self.frm_tcc.pack(fill='both', expand=True)
-            self.notebook.add(self.frm_tcc, text='TCC mode')
-            self.notebook.select(4)
-
-
-            self.btn_tcc_start = ttk.Button(self.frm_tcc)
-            self.btn_tcc_start.configure(text="Start TCC acquisition")
-            self.btn_tcc_start.grid(column="0", row="3", pady="1", padx="1")
-            self.btn_tcc_start.bind('<Button-1>', self.start_tcc_clicked, add='')
-
-
-            self.btn_tcc_stop = ttk.Button(self.frm_tcc)
-            self.btn_tcc_stop.configure(text="Stop M acquisition")
-            self.btn_tcc_stop.grid(column="1", row="3", pady="1", padx="1")
-            self.btn_tcc_stop.bind('<Button-1>', self.stop_tcc_clicked, add='')
-
-            self.lbl_tcc_near_bkg=tk.Label(self.frm_tcc)
-            self.lbl_tcc_near_bkg.configure(text="Near Background")
-            self.lbl_tcc_near_bkg.grid(row="0",column="0",pady="1", padx="1")
-
-
-            self.ent_tcc_near_bkg=tk.Entry(self.frm_tcc)
-            self.ent_tcc_near_bkg.configure(width='3')
-            self.ent_tcc_near_bkg.grid(column="1", row="0",pady="1", padx="1" )
-
-            self.tcc_mode_var=tk.StringVar(root)
-            self.tcc_mode_option= ["Dynamic", "Fixed"]
-            self.tcc_mode_var.set("Dynamic")
-            
-            self.btn_tcc_mode= tk.OptionMenu(self.frm_tcc, self.tcc_mode_var,*self.tcc_mode_option)
-            self.btn_tcc_mode.grid(row="1", column="1", padx='1', pady='1')
-           
-            self.lbl_tcc_mode=tk.Label(self.frm_tcc)
-            self.lbl_tcc_mode.configure(text="Visual Mode")
-            self.lbl_tcc_mode.grid(row="1",column="0",pady="1", padx="1")
-
-
-            self.tcc_fig = Figure(figsize=(5, 3), dpi=100)
-            self.tcc_ax = self.tcc_fig.add_subplot(111)
-    
-            #self.monkey_fig,self.monkey_ax= plt.subplots(figsize=(5, 3), dpi=100)
-            
-            #self.tcc_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],[0,0,0,0,0,0,0,0,0,0,0,0])
-            #self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[1,2,3,4,5,6,7,8,9,10,11,12]])
-
-            self.btn_m_bkg = ttk.Button(self.frm_tcc)
-            self.btn_m_bkg.configure(text="Background")
-            self.btn_m_bkg.grid(column="0", row="2", pady="1", padx="1")
-            self.btn_m_bkg.bind('<Button-1>', self.bkg_monkey_clicked, add='')
-            
-            self.lbl_m_bkg=tk.Label(self.frm_tcc)
-            self.lbl_m_bkg.configure(text=" ")
-            self.lbl_m_bkg.grid(row="2",column="1",pady="1", padx="1")
-
-            
-            self.canvasTcc = FigureCanvasTkAgg(self.tcc_fig, master=self.frm_tcc)
-            self.canvasTcc.draw()
-            self.canvasTcc.get_tk_widget().grid(row="0",column="3", rowspan="4")
-            
-            self.lbl_wvb.configure(text='WVB '+str(wvb_active))
-
 
         if getattr(args, 'monkey')==True:
             self.frm_monkey = ttk.Frame(self.notebook)
@@ -825,9 +707,7 @@ class WbControllerUltraApp(tk.Frame):
 
             self.monkey_fig = Figure(figsize=(5, 3), dpi=100)
             self.monkey_ax = self.monkey_fig.add_subplot(111)
-    
-            #self.monkey_fig,self.monkey_ax= plt.subplots(figsize=(5, 3), dpi=100)
-            
+
             self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],[0,0,0,0,0,0,0,0,0,0,0,0])
 
             self.btn_m_bkg = ttk.Button(self.frm_monkey)
@@ -843,13 +723,7 @@ class WbControllerUltraApp(tk.Frame):
             self.canvas = FigureCanvasTkAgg(self.monkey_fig, master=self.frm_monkey)
             self.canvas.draw()
             self.canvas.get_tk_widget().grid(row="0",column="3", rowspan="4")
-            
-<<<<<<< HEAD
-            self.wvb_active=3
-=======
->>>>>>> 8753eed3c80a69ede3a63768475755fcf6dd5634
-            
-            print(v_to_adc_all[3])
+
 
         def t_monitor():
             global t_board
@@ -863,9 +737,7 @@ class WbControllerUltraApp(tk.Frame):
                 e_timer.clear()
                 stdin, stdout, stderr = client.exec_command("""bash get_param.sh -N 2 """)
                 parameter=stdout.read()
-                print("DEBUGT: ",parameter,parameter[16:18])
-                #t_board=float(parameter[16:18])
-                t_board=25.2
+                t_board=float(parameter[16:18])
                 #da usare con waveboard con temperatura funzionante
                 #_board=float(parameter[16:21])
             
@@ -894,191 +766,9 @@ class WbControllerUltraApp(tk.Frame):
             thread_monitor.deamon = True
             thread_monitor.start()
 
-
-    def start_tcc_clicked(self,event=None):
-        print("tcc start")
-        
-        #for ax in self.monkey_fig.axes:
-        #    ax.clear()
-         #   if ax != self.monkey_ax:
-        #        ax.remove()
-        
-        self.ent_delay.delete(0,'end')
-        self.ent_delay.insert(0,"0")
-        self.ent_interval.delete(0,'end')
-        self.ent_interval.insert(0,"1")
-
-        data_queue = Queue()  # Queue to pass data from the file-reading thread to the main thread
-
-        channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
-        self.daq_type="rate"
-
-        ch_list=re.findall(r'\d+', channel_string)
-
-        # Get the current date and time
-        current_datetime = datetime.datetime.now()
-        date_str = current_datetime.strftime("%Y-%m-%d")
-        time_str = current_datetime.strftime("%H-%M-%S")
-
-        # Create the logfile name with date and time
-        self.tcc_filename = f"logfile_{date_str}_{time_str}.txt"
-                
-        with open(self.tcc_filename, "w") as f:
-            f.write(str(datetime.datetime.now())+"\n")
-
-        self.ent_logfile.delete(0,'end')
-        self.ent_logfile.insert(0,self.tcc_filename)
-
-        if getattr(args, 'dry')==False:
-
-            self.thread_start = threading.Thread(target=self.t_start_daq)
-            self.thread_start.deamon = True
-            self.thread_start.start()
-
-        e_timer.set()
-        e_acquisition.set()
-
-        def write_to_file_thread(logfile):
-            while e_acquisition.is_set():
-                # Generate Nchan random numbers
-                random_numbers = [random.randint(1, 400) for _ in range(len(ch_list))]
-                print(random_numbers)
-
-                with open(self.tcc_filename, "a") as file:
-                    # Write the random numbers to the logfile with timestamp and label
-                    current_datetime = datetime.datetime.now()
-                    timestamp = current_datetime.second + current_datetime.minute * 60 + current_datetime.hour *60*60+ current_datetime.day*60*60*24
-                    for i, num in enumerate(random_numbers):
-                        file.write(f"ch {ch_list[i]}:\t {num}Hz {timestamp*10}\n")
-
-                time.sleep(3)  # Wait for 3 seconds
-
-
-        def read_file_and_update_queue_thread(logfile):
-            old_data=[0,0,0,0,0,0,0,0,0,0,0,0]
-
-            while e_acquisition.is_set():
-                with open(logfile, "r") as file:
-                    lines = file.readlines()[1:]
-
-                # Parse the numbers from the logfile
-                new_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                print("New Data PREE\n", new_data)
-                for line in lines:
-                        channel = int(re.findall(r'([\d.]+)\D+', line)[0])
-                        value = float(re.findall(r'([\d.]+)\D+', line)[1])
-                        #timestamp = float(re.findall(r'([\d.]+)\D+', line)[2])
-                        new_data[channel] = value
-                print("New Data POST\n", new_data)
-
-                if new_data!=old_data:
-                    # Put the new data in the queue
-                    data_queue.put(new_data)
-                    old_data=new_data
-
-
-                else:
-                    data_queue.put( [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-                print("CODA\n",data_queue.qsize())
-                time.sleep(1)  # Wait for a short interval
-
-        def update_graph():
-            t=0
-            stripLength=20
-            megaVector=[]
-            channelLabels=["0","1","2","3","4","5","6","7","8","9","10","11"]
-            data_chx12 = np.zeros((12, 12))
-            #image=self.tcc_ax.imshow(data_chx12, cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
-            image=self.tcc_ax.plot(megaVector[-stripLength:])
-            #image=self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[5,5,5,5,5,5,5,5,5,5,5,5]])
-            #cbar=plt.colorbar(image,ax=self.monkey_ax)
-            while e_acquisition.is_set():
-
-                # Check if there is new data in the queue
-                if not data_queue.empty():
-                    data = data_queue.get()
-                    print("Presi Dati ", data)
-                    #megaVector.append(data)
-                    megaVector.insert(t,data)
-                    print("MegaVector:\t",megaVector)
-                    self.tcc_ax.clear()  # Clear the previous plot
-                    channels = ch_list
-                    if self.tcc_mode_var.get() == "Dynamic":
-
-                        #self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],data)
-                        print("Dyn:\t",data)
-                        data_chx12[:, t%12] = data
-                        
-                        #image=self.tcc_ax.imshow(data_chx12,cmap="viridis"    , origin='lower', aspect='auto', extent=(0, 11, 0, 11))
-                        image=self.tcc_ax.plot(megaVector[-stripLength:], label=channelLabels)
-                        self.tcc_ax.legend(loc="upper left", fontsize="x-small",ncol=2)
-                        self.tcc_ax.set_title("WIDMApp Real Time TCC")
-                        #image=self.tcc_ax.plot([[0,0,0,0,0,0,0,0,0,0,0,0],[12,11,10,9,8,7,6,5,4,3,2,1]])
-                        #cbar.mappable.set_clim(vmin=0,vmax=data_chx12.max()) #this works
-                        #cbar.draw_all()
-                        #self.tcc_ax.text(0.5,11.2,"max="+str(data_chx12.max()), bbox={'facecolor':'white', 'pad':2})
-                        self.tcc_ax.text(0.5,100,"WIDMApp0")
-                        if t%12==11:
-                            data_chx12 = np.zeros((12, 12))
-
-
-                        t=t+1
-                    elif self.tcc_mode_var.get() == "Fixed":
-                        near_bkg=int(self.ent_m_near_bkg.get())
-                        data_chx12[:, -t%12] = data
-                        image=self.tcc_ax.imshow(np.array(data_chx12)/(near_bkg*4), cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
-                        t=t+1
-
-                    self.canvasTcc.draw()
-                    print("empty")
-
-            time.sleep(0.2)
-
-        if getattr(args, 'dry')==True:
-            write_thread = threading.Thread(target=write_to_file_thread, args=(self.ent_logfile.get(),))
-            write_thread.start()
-
-        read_thread = threading.Thread(target=read_file_and_update_queue_thread, args=(self.ent_logfile.get(),))
-        read_thread.start()
-
-        graph_thread = threading.Thread(target=update_graph)
-        graph_thread.start()
-
-
-    def stop_tcc_clicked(self,event=None):
-
-        print("tcc stop")
-
-        channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
-
-        e_log.clear()
-        e_acquisition.clear()
-
-        if getattr(args, 'dry')==False:
-
-            print("Stopping acquisition...")
-            stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
-            print(stdout.readlines())
-            #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
-            time.sleep(1)
-            
-            stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
-            print(stdout.readlines())
-            #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
-            time.sleep(1)
-            if self.arch=="arm":
-                os.system("killall RateParser_arm")     
-            elif self.arch=="x86":
-                os.system("killall RateParser_x86") 
-  
    
     def start_monkey_clicked(self,event=None):
         print("simia start")
-        
-        #for ax in self.monkey_fig.axes:
-        #    ax.clear()
-         #   if ax != self.monkey_ax:
-        #        ax.remove()
         
         self.ent_delay.delete(0,'end')
         self.ent_delay.insert(0,"0")
@@ -1128,7 +818,7 @@ class WbControllerUltraApp(tk.Frame):
                     for i, num in enumerate(random_numbers):
                         file.write(f"ch {ch_list[i]}:\t {num}Hz {timestamp*10}\n")
 
-                time.sleep(3)  # Wait for one second
+                time.sleep(1)  # Wait for one second
 
 
         def read_file_and_update_queue_thread(logfile):
@@ -1159,7 +849,7 @@ class WbControllerUltraApp(tk.Frame):
             t=0
             data_chx12 = np.zeros((12, 12))
             image=self.monkey_ax.imshow(data_chx12, cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
-            #cbar=plt.colorbar(image,ax=self.monkey_ax)
+            cbar=plt.colorbar(image)
                 
             while e_acquisition.is_set():
 
@@ -1175,9 +865,9 @@ class WbControllerUltraApp(tk.Frame):
                         print(data)
                         data_chx12[:, t%12] = data
                         image=self.monkey_ax.imshow(data_chx12,cmap="viridis"    , origin='lower', aspect='auto', extent=(0, 11, 0, 11))
-                        #cbar.mappable.set_clim(vmin=0,vmax=data_chx12.max()) #this works
-                        #cbar.draw_all()
-                        self.monkey_ax.text(0.5,11.2,"max="+str(data_chx12.max()), bbox={'facecolor':'white', 'pad':2})
+                        cbar.mappable.set_clim(vmin=0,vmax=data_chx12.max()) #this works
+                        cbar.draw_all()
+
                         if t%12==11:
                             data_chx12 = np.zeros((12, 12))
 
@@ -1342,10 +1032,15 @@ class WbControllerUltraApp(tk.Frame):
 
     def initialize_board(self):
         global wvb_active
-          
         
-        with open("startup_parameter.json") as f:
-            param=json.load(f)
+        if getattr(args, 'monkey')==True:
+            with open(getattr(args, 'parameter')) as f:
+                param=json.load(f)
+            wvb_active=3
+
+        else:
+            with open("startup_parameter.json") as f:
+                param=json.load(f)
 
         for ch in np.arange(0,12):
             
@@ -1395,6 +1090,9 @@ class WbControllerUltraApp(tk.Frame):
         print(stdout.readlines())
         
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_iob_delay.sh -N "{0..11}" -F """ + iob_delay+ """' """)
+
+        print("Changing Board configuration...")
+        stdin, stdout, stderr = client.exec_command(""" bash daq_set_pedestal.sh -N "0 1 2 3 4 5 6 7 8 9 10 11" -P "0x100 0x115 0x130 0x150 0x105 0x105 0x110 0x100 0x105 0x115 0x110 0x110" """)
         
         print("Board initialized")
         
@@ -1403,16 +1101,6 @@ class WbControllerUltraApp(tk.Frame):
         stdin, stdout, stderr = client.exec_command("""bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string)
         print(stdout.readlines())
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
-
-        if getattr(args, 'tcc')==True:
-            wvb_active="1n"
-            polarity="negative"
-            self.switch_polarity()    
-
-        if getattr(args, 'monkey')==True:
-            wvb_active="3"
-            self.lbl_wvb.configure(text='WVB '+str(wvb_active))
-
 
     def save_binary_clicked(self, event=None):
 
@@ -1546,30 +1234,7 @@ class WbControllerUltraApp(tk.Frame):
                     
                     filesize = subprocess.check_output("du -h "+ str(name), shell=True)[:-len(name)+1]
                     self.lbl_daq_status.configure(text=str(filesize))
-                    
-                    if self.ent_size.get() != "":
-                        
-                        if "K" in str(filesize):
-                            f=1
-                        elif "M" in str(filesize):
-                            f=1000
-                            
-                        filesize_true=f*float(re.findall(r"[-+]?(?:\d*\.*\d+)",str(filesize))[0])
-                        
-                        size_t=self.ent_size.get()
-                        
-                        if "K" in str(size_t):
-                            f=1
-                        elif "M" in str(size_t):
-                            f=1000
-                            
-                        size_t=f*float(re.findall(r"[-+]?(?:\d*\.*\d+)",str(size_t) )[0])
-                        
-                        
-                        if filesize_true >= size_t:
-                            self.stop_daq_clicked()
-                        
-                    time.sleep(0.2) 
+                    time.sleep(0.5) 
 
             self.thread_size = threading.Thread(target=t_size)
             self.thread_size.deamon = True
@@ -1584,7 +1249,7 @@ class WbControllerUltraApp(tk.Frame):
         channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_disable_hv.sh -N """+channel_string+""" ' &""")
         stdin, stdout, stderr = client.exec_command("""bash daq_disable_hv.sh -N """+channel_string)
-       # print(stdout.readlines())
+        print(stdout.readlines())
 
     def stop_daq_clicked(self, event=None):
 
@@ -1609,24 +1274,18 @@ class WbControllerUltraApp(tk.Frame):
         self.lbl_daq_status.configure(text="Board ready!")
 
     def set_parameter_clicked(self, event=None):
-        print("DBG1")
 
         channel_string, start_th_string, stop_th_string, lead_string, tail_string, v_bias_string = self.get_parameter_string()
-        print("DBG2")
 
 
         stdin, stdout, stderr = client.exec_command("""bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string )
-        print("DBG3")
         print(stdout.readlines())
-        print("DBG4")
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_launch.sh -j -N """+channel_string+""" -S """+start_th_string+""" -P """+stop_th_string+ """ -L """ + lead_string + """ -T """+ tail_string +""" ' """)
         print("Setting HV values...")
         stdin, stdout, stderr = client.exec_command("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
-        print("DBG5")
-#        print(stdout.readlines())
-        print("DBG6")
+        print(stdout.readlines())
         #print("""bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string)
-        print("Finito di settare HV")
+
         #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_set_hv.sh -N """+channel_string+""" -V """+v_bias_string+""" ' """)
 
     def save_parameter_clicked(self, event=None):
