@@ -26,7 +26,7 @@ import argparse
 import gc
 import platform
 from queue import Queue
-
+from matplotlib.colors import Normalize
 
 parser = argparse.ArgumentParser(description="Waveboard controller - wirtten by Lorenzo Campana", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-d", "--dry", action="store_true", help="Dry run to run the program without connection to the waveboard")
@@ -212,7 +212,7 @@ class WbControllerUltraApp(tk.Frame):
         time.sleep(1)
 
         print("Changing Board configuration...")
-        stdin, stdout, stderr = client.exec_command(command_1)
+        #stdin, stdout, stderr = client.exec_command(command_1)
 
         
         self.initialize_board()
@@ -441,6 +441,10 @@ class WbControllerUltraApp(tk.Frame):
         self.btn_save_param.grid(column='3', row='0',padx='10', pady='10')
         self.btn_save_param.bind('<Button-1>', self.save_parameter_clicked, add='')
         
+        self.ent_size=tk.Entry(self.frm_param_action)
+        self.ent_size.configure(width='5')
+        self.ent_size.grid(column='3', row='1',padx='10', pady='10')
+
 
 
         #MISC BUTTONS
@@ -703,7 +707,9 @@ class WbControllerUltraApp(tk.Frame):
 
             self.monkey_fig = Figure(figsize=(5, 3), dpi=100)
             self.monkey_ax = self.monkey_fig.add_subplot(111)
-
+    
+            #self.monkey_fig,self.monkey_ax= plt.subplots(figsize=(5, 3), dpi=100)
+            
             self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],[0,0,0,0,0,0,0,0,0,0,0,0])
 
             self.btn_m_bkg = ttk.Button(self.frm_monkey)
@@ -719,7 +725,10 @@ class WbControllerUltraApp(tk.Frame):
             self.canvas = FigureCanvasTkAgg(self.monkey_fig, master=self.frm_monkey)
             self.canvas.draw()
             self.canvas.get_tk_widget().grid(row="0",column="3", rowspan="4")
-
+            
+            self.wvb_active=3
+            
+            print(v_to_adc_all[3])
 
         def t_monitor():
             global t_board
@@ -766,6 +775,11 @@ class WbControllerUltraApp(tk.Frame):
     def start_monkey_clicked(self,event=None):
         print("simia start")
         
+        #for ax in self.monkey_fig.axes:
+        #    ax.clear()
+         #   if ax != self.monkey_ax:
+        #        ax.remove()
+        
         self.ent_delay.delete(0,'end')
         self.ent_delay.insert(0,"0")
         self.ent_interval.delete(0,'end')
@@ -801,61 +815,88 @@ class WbControllerUltraApp(tk.Frame):
         e_timer.set()
         e_acquisition.set()
 
-        # def write_to_file_thread(logfile):
-            # while e_acquisition.is_set():
-                # # Generate six random numbers
-                # random_numbers = [random.randint(1, 400) for _ in range(len(ch_list))]
+        def write_to_file_thread(logfile):
+            while e_acquisition.is_set():
+                # Generate six random numbers
+                random_numbers = [random.randint(1, 400) for _ in range(len(ch_list))]
+                print(random_numbers)
 
-                # with open(logfile, "a") as file:
-                    # # Write the random numbers to the logfile with timestamp and label
-                    # current_datetime = datetime.datetime.now()
-                    # timestamp = current_datetime.second + current_datetime.minute * 60 + current_datetime.hour *60*60+ current_datetime.day*60*60*24
-                    # for i, num in enumerate(random_numbers):
-                        # file.write(f"ch {ch_list[i]}: {num} {timestamp}\n")
+                with open(self.monkey_filename, "a") as file:
+                    # Write the random numbers to the logfile with timestamp and label
+                    current_datetime = datetime.datetime.now()
+                    timestamp = current_datetime.second + current_datetime.minute * 60 + current_datetime.hour *60*60+ current_datetime.day*60*60*24
+                    for i, num in enumerate(random_numbers):
+                        file.write(f"ch {ch_list[i]}:\t {num}Hz {timestamp*10}\n")
 
-                # time.sleep(1)  # Wait for one second
+                time.sleep(3)  # Wait for one second
 
 
         def read_file_and_update_queue_thread(logfile):
+            old_data=[0,0,0,0,0,0,0,0,0,0,0,0]
+
             while e_acquisition.is_set():
                 with open(logfile, "r") as file:
-                    lines = file.readlines()[2:]
+                    lines = file.readlines()[1:]
 
                 # Parse the numbers from the logfile
                 new_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                 for line in lines:
                         channel = int(re.findall(r'([\d.]+)\D+', line)[0])
                         value = float(re.findall(r'([\d.]+)\D+', line)[1])
+                        #timestamp = float(re.findall(r'([\d.]+)\D+', line)[2])
                         new_data[channel] = value
 
-                # Put the new data in the queue
-                data_queue.put(new_data)
+                if new_data!=old_data:
+                    # Put the new data in the queue
+                    data_queue.put(new_data)
+                    old_data=new_data
 
-                time.sleep(0.5)  # Wait for a short interval
+                else:
+                    data_queue.put( [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                time.sleep(1)  # Wait for a short interval
 
         def update_graph():
+            t=0
+            data_chx12 = np.zeros((12, 12))
+            image=self.monkey_ax.imshow(data_chx12, cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
+            #cbar=plt.colorbar(image,ax=self.monkey_ax)
+                
             while e_acquisition.is_set():
 
                 # Check if there is new data in the queue
                 if not data_queue.empty():
                     data = data_queue.get()
-
+                    
                     self.monkey_ax.clear()  # Clear the previous plot
                     channels = ch_list
                     if self.m_mode_var.get() == "Dynamic":
-                        self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],data)
+
+                        #self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],data)
+                        print(data)
+                        data_chx12[:, t%12] = data
+                        image=self.monkey_ax.imshow(data_chx12,cmap="viridis"    , origin='lower', aspect='auto', extent=(0, 11, 0, 11))
+                        #cbar.mappable.set_clim(vmin=0,vmax=data_chx12.max()) #this works
+                        #cbar.draw_all()
+                        self.monkey_ax.text(0.5,11.2,"max="+str(data_chx12.max()), bbox={'facecolor':'white', 'pad':2})
+                        if t%12==11:
+                            data_chx12 = np.zeros((12, 12))
+
+
+                        t=t+1
                     elif self.m_mode_var.get() == "Fixed":
                         near_bkg=int(self.ent_m_near_bkg.get())
-                        self.monkey_ax.bar(["0","1","2","3","4","5","6","7","8","9","10","11"],data)
-                        self.monkey_ax.set_ylim(0, near_bkg*5)
-
+                        data_chx12[:, -t%12] = data
+                        image=self.monkey_ax.imshow(np.array(data_chx12)/(near_bkg*4), cmap='viridis', origin='lower', aspect='auto', extent=(0, 1, 0, 6))
+                        t=t+1
 
                     self.canvas.draw()
-                     #plt.pause(0.1)  # Pause to allow the graph to update
+                    print("empty")
 
+            time.sleep(0.2)
 
-         #write_thread = threading.Thread(target=write_to_file_thread, args=(self.ent_logfile.get(),))
-         #write_thread.start()
+        if getattr(args, 'dry')==True:
+            write_thread = threading.Thread(target=write_to_file_thread, args=(self.ent_logfile.get(),))
+            write_thread.start()
 
         read_thread = threading.Thread(target=read_file_and_update_queue_thread, args=(self.ent_logfile.get(),))
         read_thread.start()
@@ -964,20 +1005,22 @@ class WbControllerUltraApp(tk.Frame):
         e_log.clear()
         e_acquisition.clear()
 
-        print("Stopping acquisition...")
-        stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
-        print(stdout.readlines())
-        #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
-        time.sleep(1)
-        
-        stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
-        print(stdout.readlines())
-        #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
-        time.sleep(1)
-        if self.arch=="arm":
-            os.system("killall RateParser_arm")     
-        elif self.arch=="x86":
-            os.system("killall RateParser_x86") 
+        if getattr(args, 'dry')==False:
+
+            print("Stopping acquisition...")
+            stdin, stdout, stderr = client.exec_command("""bash daq_run_stop.sh -N """+channel_string)
+            print(stdout.readlines())
+            #os.system("""ssh """ + username + """@""" + ip_address + """ 'bash daq_run_stop.sh -N """+channel_string+"'")
+            time.sleep(1)
+            
+            stdin, stdout, stderr = client.exec_command("""killall DaqReadTcp""")
+            print(stdout.readlines())
+            #os.system("""ssh """ + username + """@""" + ip_address + """ 'killall DaqReadTcp'""")
+            time.sleep(1)
+            if self.arch=="arm":
+                os.system("killall RateParser_arm")     
+            elif self.arch=="x86":
+                os.system("killall RateParser_x86") 
     
     def start_calibration_clicked(self, event=None):
         
@@ -1198,7 +1241,30 @@ class WbControllerUltraApp(tk.Frame):
                     
                     filesize = subprocess.check_output("du -h "+ str(name), shell=True)[:-len(name)+1]
                     self.lbl_daq_status.configure(text=str(filesize))
-                    time.sleep(0.5) 
+                    
+                    if self.ent_size.get() != "":
+                        
+                        if "K" in str(filesize):
+                            f=1
+                        elif "M" in str(filesize):
+                            f=1000
+                            
+                        filesize_true=f*float(re.findall(r"[-+]?(?:\d*\.*\d+)",str(filesize))[0])
+                        
+                        size_t=self.ent_size.get()
+                        
+                        if "K" in str(size_t):
+                            f=1
+                        elif "M" in str(size_t):
+                            f=1000
+                            
+                        size_t=f*float(re.findall(r"[-+]?(?:\d*\.*\d+)",str(size_t) )[0])
+                        
+                        
+                        if filesize_true >= size_t:
+                            self.stop_daq_clicked()
+                        
+                    time.sleep(0.2) 
 
             self.thread_size = threading.Thread(target=t_size)
             self.thread_size.deamon = True
