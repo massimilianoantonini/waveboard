@@ -39,7 +39,8 @@ ssh root@192.168.137.30
 - Si manda questa onda nel segnale di un canale per volta, avendo disattivato l'HV, mettendo una soglia di entrata a 5mV
 	- Per motivi pratici conviene su un singolo canale fare tutte le 6 onde quadre
 - Per ogni configurazione (canale e voltaggio) si acquisiscono N forme d'onda
-- Si passano poi queste forme d'onda al programma dedicato (`calwb3_x20.ipynb`) che identifica il plateau per fare la conversione ADC-V
+- [Update 04/03/2025] Si usa il comando plot nell'interfaccia grafica per verificare che i segnali siano quelli attesi, e contemporaneamente ciò converte i file in formato bin nei file in formato txt (quelli realmente analizzabili).
+- Si passano poi queste forme d'onda (i file txt) al programma dedicato (`calwb3_x20.ipynb`) che identifica il plateau per fare la conversione ADC-V
 	- Questo programma tira fuori per tutti i canali grafici e coefficienti angolari e intercetta sia Volt-ADC che ADC-Volt
 - Questi numeri vanno messi a mano  nel file `config_ultra.py`
 
